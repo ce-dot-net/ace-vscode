@@ -1,8 +1,8 @@
 {
   "name": "ace-vscode",
-  "displayName": "ACE - Automatic Context Engine",
+  "displayName": "ACE for VS Code",
   "description": "Pattern learning and retrieval for GitHub Copilot - captures what works, retrieves it when needed",
-  "version": "0.4.10",
+  "version": "0.4.11",
   "publisher": "ce-dot-net",
   "license": "MIT",
   "repository": {
