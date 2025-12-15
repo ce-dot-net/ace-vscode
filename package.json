@@ -1,0 +1,272 @@
+{
+  "name": "ace-vscode",
+  "displayName": "ACE - Automatic Context Engine",
+  "description": "Pattern learning and retrieval for GitHub Copilot - captures what works, retrieves it when needed",
+  "version": "0.4.10",
+  "publisher": "ce-dot-net",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ce-dot-net/ace-vscode.git"
+  },
+  "icon": "resources/ace-icon.png",
+  "engines": {
+    "vscode": "^1.102.0"
+  },
+  "categories": [
+    "Machine Learning",
+    "Other"
+  ],
+  "keywords": [
+    "copilot",
+    "ai",
+    "mcp",
+    "pattern learning",
+    "context"
+  ],
+  "extensionDependencies": [
+    "github.copilot-chat"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "chatParticipants": [
+      {
+        "id": "ace-vscode.ace",
+        "name": "ace",
+        "fullName": "ACE Pattern Learning",
+        "description": "Semantic pattern search and learning for your codebase",
+        "isSticky": false,
+        "commands": [
+          {
+            "name": "search",
+            "description": "Search for relevant patterns in the playbook"
+          },
+          {
+            "name": "patterns",
+            "description": "View playbook patterns by section"
+          },
+          {
+            "name": "status",
+            "description": "Show playbook statistics"
+          },
+          {
+            "name": "learn",
+            "description": "Capture patterns from the current session"
+          },
+          {
+            "name": "top",
+            "description": "Show highest-rated patterns"
+          },
+          {
+            "name": "bootstrap",
+            "description": "Initialize playbook from codebase"
+          },
+          {
+            "name": "clear",
+            "description": "Clear all patterns (requires --confirm)"
+          }
+        ]
+      }
+    ],
+    "languageModelTools": [
+      {
+        "name": "ace_search",
+        "displayName": "ACE Pattern Search",
+        "toolReferenceName": "ace_search",
+        "canBeReferencedInPrompt": true,
+        "modelDescription": "Search ACE playbook for relevant patterns before implementing. Use this to find proven solutions, gotchas, and best practices from previous work.",
+        "userDescription": "Search ACE playbook for relevant patterns",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "What to search for (e.g., 'authentication', 'error handling', 'API integration')"
+            }
+          },
+          "required": [
+            "query"
+          ]
+        }
+      },
+      {
+        "name": "ace_learn",
+        "displayName": "ACE Learn",
+        "toolReferenceName": "ace_learn",
+        "canBeReferencedInPrompt": true,
+        "modelDescription": "Capture patterns from completed work. Call this after implementing features, fixing bugs, or discovering gotchas to save knowledge for future use.",
+        "userDescription": "Capture patterns and lessons learned from work",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "task": {
+              "type": "string",
+              "description": "Brief description of what was accomplished"
+            },
+            "success": {
+              "type": "boolean",
+              "description": "Whether the task succeeded"
+            },
+            "output": {
+              "type": "string",
+              "description": "Lessons learned, gotchas discovered, or key insights"
+            }
+          },
+          "required": [
+            "task"
+          ]
+        }
+      },
+      {
+        "name": "ace_status",
+        "displayName": "ACE Status",
+        "toolReferenceName": "ace_status",
+        "canBeReferencedInPrompt": true,
+        "modelDescription": "Show playbook statistics including total patterns, quality metrics, and section breakdown.",
+        "userDescription": "Show ACE playbook statistics",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "ace_get_playbook",
+        "displayName": "ACE Get Playbook",
+        "toolReferenceName": "ace_get_playbook",
+        "canBeReferencedInPrompt": true,
+        "modelDescription": "Retrieve patterns from the playbook, optionally filtered by section or minimum helpful score.",
+        "userDescription": "Retrieve patterns from ACE playbook",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "section": {
+              "type": "string",
+              "description": "Filter by section: strategies_and_hard_rules, useful_code_snippets, troubleshooting_and_pitfalls, apis_to_use"
+            },
+            "min_helpful": {
+              "type": "number",
+              "description": "Minimum helpful score to include"
+            }
+          }
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "ace-vscode.configure",
+        "title": "ACE: Configure"
+      },
+      {
+        "command": "ace-vscode.bootstrap",
+        "title": "ACE: Bootstrap Playbook"
+      },
+      {
+        "command": "ace-vscode.clear",
+        "title": "ACE: Clear Playbook"
+      },
+      {
+        "command": "ace-vscode.captureLearn",
+        "title": "ACE: Capture Learning"
+      },
+      {
+        "command": "ace-vscode.showQuickActions",
+        "title": "ACE: Quick Actions"
+      },
+      {
+        "command": "ace-vscode.updateAgents",
+        "title": "ACE: Update Agent Files"
+      },
+      {
+        "command": "ace-vscode.showStatus",
+        "title": "ACE: Show Playbook Status"
+      }
+    ],
+    "configuration": {
+      "title": "ACE",
+      "properties": {
+        "ace.projectId": {
+          "type": "string",
+          "default": "",
+          "description": "ACE Project ID (format: prj_xxxxx)"
+        },
+        "ace.orgId": {
+          "type": "string",
+          "default": "",
+          "description": "ACE Organization ID (format: org_xxxxx)"
+        },
+        "ace.serverUrl": {
+          "type": "string",
+          "default": "https://ace-api.code-engine.app",
+          "description": "ACE API Server URL"
+        },
+        "ace.automation.level": {
+          "type": "string",
+          "enum": [
+            "manual",
+            "smart",
+            "aggressive"
+          ],
+          "default": "smart",
+          "enumDescriptions": [
+            "Disable automatic suggestions",
+            "Smart suggestions based on activity patterns",
+            "Aggressive suggestions after any significant work"
+          ],
+          "description": "Automation level for ACE learning suggestions"
+        },
+        "ace.automation.minEditsBeforeSuggest": {
+          "type": "number",
+          "default": 10,
+          "description": "Minimum edits before suggesting learning capture"
+        },
+        "ace.automation.idleMinutesBeforeSuggest": {
+          "type": "number",
+          "default": 3,
+          "description": "Minutes of idle time before suggesting learning"
+        },
+        "ace.automation.showStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show ACE status in the status bar"
+        },
+        "ace.automation.gitAutoCapture": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically suggest learning capture when commits are detected"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "compile:tests": "tsc -p tsconfig.test.json",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "lint": "eslint src --ext ts",
+    "pretest": "npm run compile && npm run compile:tests",
+    "test": "vscode-test"
+  },
+  "dependencies": {
+    "@ace-sdk/core": "^2.1.1"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.102.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.2.0",
+    "eslint": "^8.57.0",
+    "mocha": "^11.7.5",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.7.0",
+    "webpack": "^5.98.0",
+    "webpack-cli": "^5.1.4"
+  }
+}

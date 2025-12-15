@@ -1,0 +1,94 @@
+import * as vscode from 'vscode';
+import { getAceClient } from '../services/aceClient';
+
+interface AceLearnInput {
+    task: string;
+    success?: boolean;
+    output?: string;
+}
+
+/**
+ * ACE Learn Tool - Captures patterns from completed work
+ * Returns verbose formatted output with learning statistics
+ */
+export class AceLearnTool implements vscode.LanguageModelTool<AceLearnInput> {
+    async invoke(
+        options: vscode.LanguageModelToolInvocationOptions<AceLearnInput>,
+        _token: vscode.CancellationToken
+    ): Promise<vscode.LanguageModelToolResult> {
+        const { task, success = true, output: taskOutput } = options.input;
+        const client = getAceClient();
+
+        if (!client) {
+            return new vscode.LanguageModelToolResult([
+                new vscode.LanguageModelTextPart('❌ **[ACE] Not configured.** Run "ACE: Configure" first.')
+            ]);
+        }
+
+        try {
+            const trace = {
+                task,
+                trajectory: [] as string[],
+                result: { success, output: taskOutput || '' },
+                playbook_used: [] as string[],
+                timestamp: new Date().toISOString()
+            };
+
+            const result = await client.storeExecutionTrace(trace);
+
+            // Format verbose output matching CLI plugin style
+            let output = `✅ **[ACE] Learning captured!**\n\n`;
+
+            // Show learning statistics block
+            output += `📚 **ACE Learning:**\n`;
+
+            const stats = result.learning_statistics;
+            if (stats) {
+                const statParts: string[] = [];
+
+                if (stats.patterns_created !== undefined && stats.patterns_created > 0) {
+                    statParts.push(`✨ ${stats.patterns_created} created`);
+                }
+                if (stats.patterns_updated !== undefined && stats.patterns_updated > 0) {
+                    statParts.push(`🔄 ${stats.patterns_updated} updated`);
+                }
+                if (stats.patterns_pruned !== undefined && stats.patterns_pruned > 0) {
+                    statParts.push(`🧹 ${stats.patterns_pruned} pruned`);
+                }
+                if (stats.average_confidence !== undefined) {
+                    const quality = Math.round(stats.average_confidence * 100);
+                    statParts.push(`⭐ ${quality}% quality`);
+                }
+
+                if (statParts.length > 0) {
+                    output += `   ${statParts.join('  ')}\n`;
+                }
+
+                // Show section breakdown
+                if (stats.by_section) {
+                    const sections = Object.entries(stats.by_section)
+                        .filter(([, count]) => count > 0)
+                        .map(([section]) => section.replace(/_/g, ' '));
+                    if (sections.length > 0) {
+                        output += `   📂 ${sections.join(', ')}\n`;
+                    }
+                }
+
+                if (stats.analysis_time_seconds !== undefined) {
+                    output += `   ⏱️ ${stats.analysis_time_seconds.toFixed(1)}s analysis\n`;
+                }
+            } else {
+                output += `   Analysis pending\n`;
+            }
+
+            return new vscode.LanguageModelToolResult([
+                new vscode.LanguageModelTextPart(output)
+            ]);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return new vscode.LanguageModelToolResult([
+                new vscode.LanguageModelTextPart(`❌ **[ACE] Learn failed:** ${message}`)
+            ]);
+        }
+    }
+}

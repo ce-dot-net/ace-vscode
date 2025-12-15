@@ -1,0 +1,53 @@
+# Dependencies (bundled by webpack)
+node_modules/**
+
+# Source files (compiled to dist/)
+src/**
+*.ts
+!*.d.ts
+tsconfig.json
+tsconfig.test.json
+webpack.config.js
+
+# Development files
+.vscode/**
+.github/**
+!.github/agents/**
+.gitignore
+.eslintrc.json
+
+# Documentation (except README/CHANGELOG)
+*.md
+!README.md
+!CHANGELOG.md
+
+# Test files
+test/**
+*.test.ts
+*.test.js
+.vscode-test/**
+.vscode-test.mjs
+
+# Build artifacts
+*.map
+out/**
+
+# IDE files
+.idea/**
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Cache and data files
+.ace-cache/**
+.claude/**
+*.db
+*.log
+
+# Package files
+*.vsix
+package-lock.json
