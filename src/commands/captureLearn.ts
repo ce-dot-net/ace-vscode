@@ -101,6 +101,14 @@ export async function handleCaptureLearn(options?: CaptureLearnOptions): Promise
         }
         if (gitContext.uncommittedChanges > 0) {
             trajectory += `Uncommitted changes: ${gitContext.uncommittedChanges}\n`;
+            if (gitContext.changedFiles.length > 0) {
+                const displayFiles = gitContext.changedFiles.slice(0, 10); // Limit to 10 files
+                trajectory += `Changed files: ${displayFiles.join(', ')}`;
+                if (gitContext.changedFiles.length > 10) {
+                    trajectory += ` (+${gitContext.changedFiles.length - 10} more)`;
+                }
+                trajectory += '\n';
+            }
         }
     }
 

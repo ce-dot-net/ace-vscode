@@ -13,6 +13,7 @@ export interface GitContext {
         date?: Date;
     }>;
     uncommittedChanges: number;
+    changedFiles: string[];
     remoteUrl?: string;
 }
 
@@ -249,6 +250,12 @@ export class GitMonitor implements vscode.Disposable {
                 state.workingTreeChanges.length +
                 state.indexChanges.length;
 
+            // Extract changed file paths (relative to workspace)
+            const changedFiles = [
+                ...state.workingTreeChanges.map(c => vscode.workspace.asRelativePath(c.uri)),
+                ...state.indexChanges.map(c => vscode.workspace.asRelativePath(c.uri))
+            ];
+
             // Get remote URL
             const origin = state.remotes.find(r => r.name === 'origin');
             const remoteUrl = origin?.fetchUrl || origin?.pushUrl;
@@ -257,6 +264,7 @@ export class GitMonitor implements vscode.Disposable {
                 branch,
                 commitsSinceStart,
                 uncommittedChanges,
+                changedFiles,
                 remoteUrl,
             };
         } catch (error) {

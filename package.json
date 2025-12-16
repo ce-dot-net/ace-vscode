@@ -2,7 +2,7 @@
   "name": "ace-vscode",
   "displayName": "ACE for GitHub Copilot",
   "description": "Pattern learning and retrieval for GitHub Copilot - captures what works, retrieves it when needed",
-  "version": "0.4.13",
+  "version": "0.4.14",
   "publisher": "ce-dot-net",
   "license": "MIT",
   "repository": {
@@ -190,16 +190,19 @@
         "ace.projectId": {
           "type": "string",
           "default": "",
+          "scope": "resource",
           "description": "ACE Project ID (format: prj_xxxxx)"
         },
         "ace.orgId": {
           "type": "string",
           "default": "",
+          "scope": "resource",
           "description": "ACE Organization ID (format: org_xxxxx)"
         },
         "ace.serverUrl": {
           "type": "string",
           "default": "https://ace-api.code-engine.app",
+          "scope": "resource",
           "description": "ACE API Server URL"
         },
         "ace.automation.level": {
@@ -251,7 +254,7 @@
     "test": "vscode-test"
   },
   "dependencies": {
-    "@ace-sdk/core": "^2.1.1"
+    "@ace-sdk/core": "^2.2.0"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
