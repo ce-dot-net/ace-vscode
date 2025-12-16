@@ -5,6 +5,16 @@ All notable changes to ACE for VSCode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.13] - 2025-12-16
+
+### Fixed
+- Multi-root workspace: Now detects folder switches and updates context
+- Shows configuration popup when switching to unconfigured folder
+- Status bar updates per-folder configuration state
+
+### Added
+- `src/automation/workspaceMonitor.ts` - Real-time workspace folder monitoring
+
 ## [0.4.12] - 2025-12-15
 
 ### Changed
