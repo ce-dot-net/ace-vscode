@@ -5,6 +5,19 @@ All notable changes to ACE for VSCode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.15] - 2025-12-16
+
+### Fixed
+- Issue #5 root cause fix: Removed `execute/runInTerminal` from ace-expert agent
+  - **Root cause**: Having terminal tool made model prefer heredocs for multiline content
+  - **Fix**: Remove terminal tool entirely - model now uses `edit/editFiles` for all file content
+  - Removed `web/fetch` tool (not essential for pattern learning workflow)
+  - Simplified agent instructions (no terminal style guidance needed)
+
+### Changed
+- Agent files version bumped to 0.4.15 (will prompt for update)
+- ace-expert now has 8 tools instead of 10 (focused on coding + ACE patterns)
+
 ## [0.4.14] - 2025-12-16
 
 ### Added
