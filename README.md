@@ -134,12 +134,26 @@ Configure in VS Code Settings (`Cmd+,`) or `.vscode/settings.json`:
 | `ace.automation.showStatusBar` | Show ACE status in status bar | `true` |
 | `ace.automation.gitAutoCapture` | Auto-suggest learning on commits | `false` |
 
-## Agent Files
+## Agent Files (v0.4.16+)
 
-ACE can generate `.github/agents/` files for CI/CD AI assistants. Run `ACE: Update Agent Files` to create:
+ACE generates GitHub Copilot agent files for automatic pattern learning. Run `ACE: Update Agent Files` to create:
 
-- `.github/agents/ace-playbook.md` - Playbook patterns for AI agents
-- `.github/.ace-version.json` - Version tracking for smart updates
+```
+.github/
+├── instructions/ace.instructions.md  # Path-specific (won't overwrite your copilot-instructions.md)
+├── skills/ace-pattern-learning/SKILL.md  # Agent Skill for auto-trigger
+├── agents/ace.agent.md  # ace-expert agent (PRIMARY)
+├── agents/ace-learn.agent.md  # Learning capture agent
+└── .ace-version.json  # Version tracking
+```
+
+### Agent Skills (NEW in v0.4.16)
+
+**Agent Skills** are auto-triggered by Copilot based on your prompt. When you type keywords like "implement", "build", "fix", or "debug", Copilot automatically loads ACE patterns before starting work.
+
+### ace-expert Agent (Recommended)
+
+For **guaranteed** pattern retrieval, select **ace-expert** as your agent in Copilot Chat. This ensures ACE tools are always available.
 
 ## Requirements
 

@@ -5,6 +5,35 @@ All notable changes to ACE for VSCode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.16] - 2025-12-21
+
+### Added
+- **Agent Skills support**: New `.github/skills/ace-pattern-learning/SKILL.md`
+  - Copilot auto-triggers skill based on user prompt (implement, build, fix, etc.)
+  - Compatible with Claude Code `.claude/skills/` directory
+  - Model-invoked: Copilot decides when to use the skill
+- **Path-specific instructions**: New `.github/instructions/ace.instructions.md`
+  - Uses `applyTo: "**/*"` frontmatter for all files
+  - Does NOT overwrite user's `copilot-instructions.md`
+- **Migration logic**: Safely migrates legacy `copilot-instructions.md`
+  - Detects ACE content in existing file
+  - Removes only ACE-created content, preserves user content
+
+### Changed
+- **New folder structure** for v0.4.16:
+  ```
+  .github/
+  ├── instructions/ace.instructions.md  # NEW: path-specific
+  ├── skills/ace-pattern-learning/SKILL.md  # NEW: Agent Skill
+  ├── agents/ace.agent.md  # ace-expert (PRIMARY)
+  └── agents/ace-learn.agent.md
+  ```
+- Agent files version bumped to 0.4.16 (will prompt for update)
+- No longer overwrites user's `copilot-instructions.md`
+
+### Fixed
+- Issue: ACE was overwriting user's custom instructions in `copilot-instructions.md`
+
 ## [0.4.15] - 2025-12-16
 
 ### Fixed

@@ -42,13 +42,3 @@ User: "implement JWT authentication"
 ```
 
 **Remember: ace_search BEFORE, ace_learn AFTER - BOTH are MANDATORY!**
-
-## ❌ DO NOT
-- Use heredoc syntax (`<<EOF`, `<<'EOF'`) when writing terminal commands
-- Write multiline strings to files using cat with heredoc
-
-## ✅ Terminal Commands
-Write commands directly without heredoc:
-- ✅ `npm install package-name`
-- ✅ `git commit -m "message"`
-- ❌ `cat <<EOF > file.txt`

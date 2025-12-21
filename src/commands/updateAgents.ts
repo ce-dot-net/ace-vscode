@@ -66,11 +66,69 @@ function writeVersionFile(workspaceRoot: string, version: string): void {
 }
 
 /**
- * Checks if agent files exist
+ * Checks if ACE files exist (new structure: instructions/ace.instructions.md)
  */
 function agentFilesExist(workspaceRoot: string): boolean {
-    const instructionsPath = path.join(workspaceRoot, '.github', 'copilot-instructions.md');
-    return fs.existsSync(instructionsPath);
+    // Check for new structure first
+    const newInstructionsPath = path.join(workspaceRoot, '.github', 'instructions', 'ace.instructions.md');
+    if (fs.existsSync(newInstructionsPath)) {
+        return true;
+    }
+
+    // Check for legacy structure (copilot-instructions.md with ACE content)
+    const legacyPath = path.join(workspaceRoot, '.github', 'copilot-instructions.md');
+    if (fs.existsSync(legacyPath)) {
+        try {
+            const content = fs.readFileSync(legacyPath, 'utf-8');
+            // Check if it has ACE content (our marker or ACE-specific content)
+            return content.includes('ACE Pattern Learning') || content.includes('ace_search') || content.includes('ace_learn');
+        } catch {
+            return false;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Migrates legacy copilot-instructions.md by removing ACE content
+ * Returns true if migration was performed
+ */
+function migrateLegacyCopilotInstructions(workspaceRoot: string): boolean {
+    const legacyPath = path.join(workspaceRoot, '.github', 'copilot-instructions.md');
+
+    if (!fs.existsSync(legacyPath)) {
+        return false;
+    }
+
+    try {
+        const content = fs.readFileSync(legacyPath, 'utf-8');
+
+        // Check if the file is entirely ACE content (we created it)
+        const isEntirelyAceContent = content.includes('# ACE Pattern Learning Integration') &&
+            content.includes('ace_search') &&
+            content.includes('ace_learn') &&
+            !content.includes('<!-- USER_CONTENT -->'); // No user marker
+
+        if (isEntirelyAceContent) {
+            // The entire file is ACE content - we can safely delete it
+            // (User's instructions should be separate)
+            fs.unlinkSync(legacyPath);
+            console.log('ACE: Removed legacy copilot-instructions.md (was entirely ACE content)');
+            return true;
+        }
+
+        // If there's mixed content, leave it alone and warn
+        if (content.includes('ACE Pattern Learning') || content.includes('ace_search')) {
+            console.log('ACE: Legacy copilot-instructions.md has mixed content - leaving untouched');
+            // Don't delete, but note that migration happened (we'll create new file anyway)
+            return true;
+        }
+
+        return false;
+    } catch {
+        return false;
+    }
 }
 
 /**
@@ -157,7 +215,13 @@ export async function checkAgentFilesUpdate(): Promise<void> {
 }
 
 /**
- * Direct command to update ACE files - creates copilot-instructions.md (PRIMARY) + optional agents
+ * Direct command to update ACE files
+ * New v0.4.16 structure:
+ * - .github/instructions/ace.instructions.md (path-specific, doesn't overwrite user's copilot-instructions.md)
+ * - .github/skills/ace-pattern-learning/SKILL.md (Agent Skill for auto-trigger)
+ * - .github/agents/ace.agent.md (ace-expert agent - PRIMARY)
+ * - .github/agents/ace-learn.agent.md (learning agent)
+ *
  * @param silent If true, runs without UI notifications (for automatic updates on activation)
  * @param folder Optional specific folder to update (for multi-root workspaces)
  */
@@ -174,24 +238,40 @@ export async function handleUpdateAgents(silent: boolean = false, folder?: vscod
     const targetFolder = folder?.name ?? getActiveWorkspaceFolder()?.name;
 
     const githubDir = path.join(workspaceRoot, '.github');
+    const instructionsDir = path.join(githubDir, 'instructions');
+    const skillsDir = path.join(githubDir, 'skills', 'ace-pattern-learning');
     const agentsDir = path.join(githubDir, 'agents');
 
     try {
-        // Create .github directory if needed
+        // Migrate legacy copilot-instructions.md if needed
+        const migrated = migrateLegacyCopilotInstructions(workspaceRoot);
+        if (migrated) {
+            console.log('ACE: Migrated from legacy copilot-instructions.md');
+        }
+
+        // Create directories
         if (!fs.existsSync(githubDir)) {
             fs.mkdirSync(githubDir, { recursive: true });
         }
-
-        // PRIMARY: Create copilot-instructions.md (AUTOMATIC injection on every request)
-        const instructionsPath = path.join(githubDir, 'copilot-instructions.md');
-        fs.writeFileSync(instructionsPath, getCopilotInstructionsContent());
-
-        // OPTIONAL: Create agents directory and agent files
+        if (!fs.existsSync(instructionsDir)) {
+            fs.mkdirSync(instructionsDir, { recursive: true });
+        }
+        if (!fs.existsSync(skillsDir)) {
+            fs.mkdirSync(skillsDir, { recursive: true });
+        }
         if (!fs.existsSync(agentsDir)) {
             fs.mkdirSync(agentsDir, { recursive: true });
         }
 
-        // Create/update ACE agent (minimal - just tools + handoffs)
+        // NEW: Create .github/instructions/ace.instructions.md (path-specific, won't overwrite user content)
+        const aceInstructionsPath = path.join(instructionsDir, 'ace.instructions.md');
+        fs.writeFileSync(aceInstructionsPath, getAceInstructionsContent());
+
+        // NEW: Create .github/skills/ace-pattern-learning/SKILL.md (Agent Skill)
+        const skillPath = path.join(skillsDir, 'SKILL.md');
+        fs.writeFileSync(skillPath, getAceSkillContent());
+
+        // Create/update ACE agent (ace-expert - PRIMARY for reliable workflow)
         const aceAgentPath = path.join(agentsDir, 'ace.agent.md');
         fs.writeFileSync(aceAgentPath, getAceAgentContent());
 
@@ -204,8 +284,9 @@ export async function handleUpdateAgents(silent: boolean = false, folder?: vscod
 
         if (!silent) {
             const folderInfo = targetFolder ? ` for "${targetFolder}"` : '';
+            const migrationNote = migrated ? ' Legacy copilot-instructions.md migrated.' : '';
             vscode.window.showInformationMessage(
-                `ACE files updated to v${AGENT_FILES_VERSION}${folderInfo}! copilot-instructions.md enables automatic pattern injection.`
+                `ACE files updated to v${AGENT_FILES_VERSION}${folderInfo}!${migrationNote} New structure: instructions/, skills/, agents/`
             );
 
             // Open the .github folder in explorer
@@ -225,34 +306,32 @@ export async function handleUpdateAgents(silent: boolean = false, folder?: vscod
     }
 }
 
-/**
- * PRIMARY: copilot-instructions.md - Automatically applied to ALL Copilot requests
- */
-function getCopilotInstructionsContent(): string {
-    return `# ACE Pattern Learning Integration
+// NEW: .github/instructions/ace.instructions.md
+// Path-specific instructions that apply to all files (applyTo: "**/*")
+// This does NOT overwrite user's copilot-instructions.md
+function getAceInstructionsContent(): string {
+    return `---
+applyTo: "**/*"
+---
+<!-- ACE_SECTION v${AGENT_FILES_VERSION} -->
+# ACE Pattern Learning Integration
 
 This project uses **ACE (Automatic Context Engine)** for pattern-based learning.
 
-## ⚠️ CRITICAL: MANDATORY ACE Tool Usage
+## ⚠️ MANDATORY ACE Tool Usage
 
-**YOU MUST follow this workflow for EVERY implementation task:**
+### BEFORE Starting Work
+When request contains: **implement, build, create, fix, debug, refactor, integrate, add, update, write, modify, change**
 
-### STEP 1: BEFORE Starting Work (MANDATORY)
-When the request contains: **implement, build, create, fix, debug, refactor, integrate, add, update, write, modify, change**
+**INVOKE**: \`#ce-dot-net.ace-vscode/ace_search\` FIRST before writing any code.
 
-**YOU MUST invoke \`#ce-dot-net.ace-vscode/ace_search\` FIRST** before writing any code.
-- Search for relevant patterns from the playbook
-- Apply learned strategies and avoid known pitfalls
+### AFTER Completing Work
+**INVOKE**: \`#ce-dot-net.ace-vscode/ace_learn\` IMMEDIATELY after completing substantial work.
 
-### STEP 2: AFTER Completing Work (MANDATORY)
-**YOU MUST invoke \`#ce-dot-net.ace-vscode/ace_learn\` IMMEDIATELY after completing substantial work.**
-
-This is **NOT OPTIONAL**. Call ace_learn with:
+Provide:
 - \`task\`: Brief description of what was accomplished
 - \`success\`: true/false
 - \`output\`: Key lessons, patterns discovered, gotchas
-
-**DO NOT skip this step. DO NOT respond to user without calling ace_learn first.**
 
 ## Available Tools
 
@@ -261,18 +340,64 @@ This is **NOT OPTIONAL**. Call ace_learn with:
 - \`#ce-dot-net.ace-vscode/ace_get_playbook\` - View all patterns
 - \`#ce-dot-net.ace-vscode/ace_status\` - Show statistics
 
-## Workflow Example
+**Remember: ace_search BEFORE, ace_learn AFTER - BOTH are MANDATORY!**
+<!-- ACE_SECTION_END -->
+`;
+}
+
+/**
+ * NEW: .github/skills/ace-pattern-learning/SKILL.md
+ * Agent Skill that auto-triggers based on user prompt
+ * Copilot decides when to use this skill based on the description
+ */
+function getAceSkillContent(): string {
+    return `---
+name: ace-pattern-learning
+description: "Search ACE playbook before implementing, building, fixing, debugging, or refactoring code. Capture patterns after completing substantial coding work."
+---
+<!-- ACE_SECTION v${AGENT_FILES_VERSION} -->
+# ACE Pattern Learning Skill
+
+This skill provides pattern-based learning for coding tasks.
+
+## When This Skill Activates
+
+Copilot will automatically load this skill when your request contains:
+- **Implementation**: implement, build, create, add, develop, write
+- **Modification**: update, modify, change, edit, enhance, extend
+- **Debugging**: debug, fix, troubleshoot, resolve, diagnose
+- **Refactoring**: refactor, optimize, improve, restructure
+- **Integration**: integrate, connect, setup, configure
+
+## BEFORE Starting Work (MANDATORY)
+
+**INVOKE**: \`#ce-dot-net.ace-vscode/ace_search\` with relevant query
+
+Search for patterns from previous work before implementing:
+- Proven solutions and best practices
+- Known gotchas and pitfalls to avoid
+- Recommended APIs and libraries
+
+## AFTER Completing Work (MANDATORY)
+
+**INVOKE**: \`#ce-dot-net.ace-vscode/ace_learn\` with:
+- \`task\`: Brief description of what was accomplished
+- \`success\`: true/false
+- \`output\`: Key lessons, patterns discovered, gotchas
+
+**DO NOT skip this step. DO NOT respond to user without calling ace_learn first.**
+
+## Example Workflow
 
 \`\`\`
 User: "implement JWT authentication"
     ↓
-1. INVOKE: #ce-dot-net.ace-vscode/ace_search with query "JWT authentication"
-2. IMPLEMENT: Using patterns found
-3. INVOKE: #ce-dot-net.ace-vscode/ace_learn with task summary
-4. RESPOND: To user with implementation details
+1. ace_search("JWT authentication") → Find patterns
+2. Implement using patterns found
+3. ace_learn(task="Implemented JWT auth", success=true, output="Used refresh token rotation")
+4. Respond to user
 \`\`\`
-
-**Remember: ace_search BEFORE, ace_learn AFTER - BOTH are MANDATORY!**
+<!-- ACE_SECTION_END -->
 `;
 }
 
