@@ -23,7 +23,7 @@ suite('ACE Extension Test Suite', () => {
         assert.ok(pkg, 'Package JSON should exist');
         assert.strictEqual(pkg.name, 'ace-vscode', 'Extension name should match');
         assert.strictEqual(pkg.publisher, 'ce-dot-net', 'Publisher should match');
-        assert.strictEqual(pkg.version, '0.4.16', 'Version should be 0.4.16');
+        assert.strictEqual(pkg.version, '0.4.17', 'Version should be 0.4.17');
     });
 
     test('Extension should declare all 7 commands in package.json', () => {

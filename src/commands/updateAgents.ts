@@ -333,6 +333,14 @@ Provide:
 - \`success\`: true/false
 - \`output\`: Key lessons, patterns discovered, gotchas
 
+### DURING Conversation (Topic Changes)
+When the conversation topic shifts significantly:
+- New domain mentioned (auth → caching, frontend → backend, etc.)
+- User asks about something not covered by previous search
+- Error/issue in different area than original task
+
+**INVOKE**: \`#ce-dot-net.ace-vscode/ace_search\` with NEW topic query BEFORE continuing.
+
 ## Available Tools
 
 - \`#ce-dot-net.ace-vscode/ace_search\` - Find relevant patterns (BEFORE work)
@@ -387,6 +395,20 @@ Search for patterns from previous work before implementing:
 
 **DO NOT skip this step. DO NOT respond to user without calling ace_learn first.**
 
+## Mid-Conversation Re-Search
+
+If user's follow-up message introduces a NEW topic or domain:
+1. Recognize topic shift (auth→caching, API→database, etc.)
+2. Call ace_search with the new topic BEFORE continuing
+3. Apply newly retrieved patterns
+
+**Examples of topic shifts requiring re-search:**
+- "Now let's add caching" (after auth implementation)
+- "I'm getting a database error" (after API work)
+- "How do I deploy this?" (after coding)
+- "Let's add tests" (after implementation)
+- "Now handle the error cases" (new domain)
+
 ## Example Workflow
 
 \`\`\`
@@ -395,6 +417,13 @@ User: "implement JWT authentication"
 1. ace_search("JWT authentication") → Find patterns
 2. Implement using patterns found
 3. ace_learn(task="Implemented JWT auth", success=true, output="Used refresh token rotation")
+4. Respond to user
+
+User: "Now add Redis caching for the tokens"
+    ↓
+1. ace_search("Redis caching tokens") → NEW SEARCH for new topic!
+2. Implement caching using patterns found
+3. ace_learn(task="Added Redis token caching", success=true, output="Used TTL matching token expiry")
 4. Respond to user
 \`\`\`
 <!-- ACE_SECTION_END -->

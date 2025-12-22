@@ -2,7 +2,7 @@ import * as assert from 'assert';
 
 /**
  * Unit tests for updateAgents command
- * Tests agent file generation and content for v0.4.16 structure
+ * Tests agent file generation and content for v0.4.17 structure
  */
 suite('UpdateAgents Command Tests', () => {
 
@@ -53,7 +53,7 @@ suite('UpdateAgents Command Tests', () => {
     });
 
     test('shows success message on completion', () => {
-        const expectedMessage = 'ACE files updated to v0.4.16! New structure: instructions/, skills/, agents/';
+        const expectedMessage = 'ACE files updated to v0.4.17! New structure: instructions/, skills/, agents/';
         assert.ok(expectedMessage.includes('ACE files updated'), 'Shows success');
     });
 
@@ -65,7 +65,7 @@ suite('UpdateAgents Command Tests', () => {
     });
 });
 
-suite('ACE Instructions Content (v0.4.16)', () => {
+suite('ACE Instructions Content (v0.4.17)', () => {
 
     test('has applyTo frontmatter', () => {
         const frontmatter = 'applyTo: "**/*"';
@@ -73,8 +73,20 @@ suite('ACE Instructions Content (v0.4.16)', () => {
     });
 
     test('has version marker', () => {
-        const marker = '<!-- ACE_SECTION v0.4.16 -->';
+        const marker = '<!-- ACE_SECTION v0.4.17 -->';
         assert.ok(marker.includes('ACE_SECTION'), 'Has version marker');
+    });
+
+    test('has DURING conversation section for topic changes', () => {
+        const section = 'DURING Conversation (Topic Changes)';
+        assert.ok(section.includes('Topic Changes'), 'Has topic change section');
+    });
+
+    test('mentions topic shift examples', () => {
+        const examples = ['auth → caching', 'frontend → backend', 'Error/issue in different area'];
+        for (const example of examples) {
+            assert.ok(example.length > 0, `Example "${example}" is documented`);
+        }
     });
 
     test('has closing marker', () => {
@@ -97,7 +109,7 @@ suite('ACE Instructions Content (v0.4.16)', () => {
     });
 
     test('does NOT overwrite copilot-instructions.md', () => {
-        // v0.4.16: ACE uses separate ace.instructions.md in instructions folder
+        // v0.4.17: ACE uses separate ace.instructions.md in instructions folder
         const aceFile = 'ace.instructions.md';
         const userFile = 'copilot-instructions.md';
         // ACE file is in instructions/ subfolder, user file is in .github/ root
@@ -106,7 +118,7 @@ suite('ACE Instructions Content (v0.4.16)', () => {
     });
 });
 
-suite('Agent Skill Content (v0.4.16)', () => {
+suite('Agent Skill Content (v0.4.17)', () => {
 
     test('has correct name in frontmatter', () => {
         const name = 'ace-pattern-learning';
@@ -121,8 +133,30 @@ suite('Agent Skill Content (v0.4.16)', () => {
     });
 
     test('has version marker', () => {
-        const marker = '<!-- ACE_SECTION v0.4.16 -->';
+        const marker = '<!-- ACE_SECTION v0.4.17 -->';
         assert.ok(marker.includes('ACE_SECTION'), 'Has version marker');
+    });
+
+    test('has Mid-Conversation Re-Search section', () => {
+        const section = 'Mid-Conversation Re-Search';
+        assert.ok(section.includes('Re-Search'), 'Has re-search section');
+    });
+
+    test('lists topic shift examples', () => {
+        const examples = [
+            '"Now let\'s add caching"',
+            '"I\'m getting a database error"',
+            '"How do I deploy this?"',
+            '"Let\'s add tests"'
+        ];
+        for (const example of examples) {
+            assert.ok(example.length > 0, `Topic shift example is documented: ${example.slice(0, 20)}...`);
+        }
+    });
+
+    test('shows multi-turn workflow example', () => {
+        const workflow = 'User: "Now add Redis caching for the tokens"';
+        assert.ok(workflow.includes('Redis'), 'Shows follow-up message example');
     });
 
     test('includes trigger keywords list', () => {
@@ -147,7 +181,7 @@ suite('Agent Skill Content (v0.4.16)', () => {
     });
 });
 
-suite('Migration Logic (v0.4.16)', () => {
+suite('Migration Logic (v0.4.17)', () => {
 
     test('detects ACE content in legacy file', () => {
         const content = '# ACE Pattern Learning Integration';
@@ -183,7 +217,7 @@ suite('Migration Logic (v0.4.16)', () => {
     });
 });
 
-suite('ACE Agent Content (v0.4.16)', () => {
+suite('ACE Agent Content (v0.4.17)', () => {
 
     test('has correct frontmatter structure', () => {
         const frontmatter = {
@@ -345,7 +379,7 @@ suite('Tool Name Consistency', () => {
     });
 });
 
-suite('Folder Structure (v0.4.16)', () => {
+suite('Folder Structure (v0.4.17)', () => {
 
     test('new structure has instructions folder', () => {
         const path = '.github/instructions/ace.instructions.md';

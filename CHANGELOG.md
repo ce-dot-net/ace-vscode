@@ -5,6 +5,17 @@ All notable changes to ACE for VSCode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.17] - 2025-12-22
+
+### Added
+- **Mid-conversation re-search guidance**: Instructions now tell Copilot to call `ace_search` again when topics change
+  - Detects topic shifts (auth → caching, API → database, etc.)
+  - Examples: "Now let's add caching", "I'm getting a database error", "How do I deploy this?"
+- Enhanced SKILL.md with multi-turn conversation workflow example
+
+### Changed
+- Agent files version bumped to 0.4.17 (will prompt for update)
+
 ## [0.4.16] - 2025-12-21
 
 ### Added

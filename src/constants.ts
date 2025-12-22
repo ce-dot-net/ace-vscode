@@ -31,8 +31,8 @@ export const DEFAULT_SERVER_URL = 'https://ace-api.code-engine.app';
 
 // Agent files version - bump this ONLY when agent file CONTENT changes
 // This is separate from extension version - only triggers update popup when agent files have new content
-// Current: 0.4.16 (new folder structure: instructions/, skills/, migration from copilot-instructions.md)
-export const AGENT_FILES_VERSION = '0.4.16';
+// Current: 0.4.17 (enhanced instructions for mid-conversation topic change re-search)
+export const AGENT_FILES_VERSION = '0.4.17';
 
 // Global config path (XDG standard, same as @ace-sdk/core)
 export const getGlobalConfigPath = (): string => {
