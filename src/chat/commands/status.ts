@@ -54,11 +54,38 @@ export async function handleStatus(
             formatMarkdown(stream, '\n');
         }
 
-        // Quality metric
-        if (status.avg_confidence !== undefined) {
-            const quality = Math.round(status.avg_confidence * 100);
+        // Domain breakdown (v0.4.18)
+        const byDomain = status.by_domain as Record<string, number> | undefined;
+        if (byDomain && Object.keys(byDomain).length > 0) {
+            const sortedDomains = Object.entries(byDomain)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5); // Top 5 domains
+
+            formatMarkdown(stream, '### Top Domains\n');
+            for (const [domain, count] of sortedDomains) {
+                formatMarkdown(stream, `- \`${domain}\`: ${count}\n`);
+            }
+            const remainingCount = Object.keys(byDomain).length - 5;
+            if (remainingCount > 0) {
+                formatMarkdown(stream, `- *...and ${remainingCount} more (use \`/domains\` to see all)*\n`);
+            }
+            formatMarkdown(stream, '\n');
+        }
+
+        // Quality metrics
+        if (status.avg_confidence !== undefined || status.helpful_total !== undefined) {
             formatMarkdown(stream, `### Quality\n`);
-            formatMarkdown(stream, `- Average Confidence: ${quality}%\n\n`);
+            if (status.avg_confidence !== undefined) {
+                const quality = Math.round(status.avg_confidence * 100);
+                formatMarkdown(stream, `- Average Confidence: ${quality}%\n`);
+            }
+            if (status.helpful_total !== undefined) {
+                formatMarkdown(stream, `- Total Helpful: ${status.helpful_total}\n`);
+            }
+            if (status.harmful_total !== undefined) {
+                formatMarkdown(stream, `- Total Harmful: ${status.harmful_total}\n`);
+            }
+            formatMarkdown(stream, '\n');
         }
 
         // Show project info

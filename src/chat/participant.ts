@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { PARTICIPANT_ID, CHAT_COMMANDS } from '../constants';
-import { handleSearch, handlePatterns, handleStatus, handleLearn, handleTop, handleBootstrap, handleClear } from './commands';
+import { handleSearch, handlePatterns, handleStatus, handleLearn, handleTop, handleBootstrap, handleClear, handleDomains } from './commands';
 import { formatMarkdown, formatSectionHeader } from './utils/formatters';
 
 /**
@@ -35,6 +35,9 @@ export function registerChatParticipant(context: vscode.ExtensionContext): vscod
 
             case CHAT_COMMANDS.CLEAR:
                 return handleClear(request, context, stream, token);
+
+            case CHAT_COMMANDS.DOMAINS:
+                return handleDomains(request, context, stream, token);
 
             default:
                 return handleDefaultRequest(request, context, stream, token);
@@ -90,7 +93,8 @@ async function handleDefaultRequest(
     formatMarkdown(stream, '- `/learn <description>` - Capture patterns from work\n');
     formatMarkdown(stream, '- `/top [count]` - Show highest-rated patterns\n');
     formatMarkdown(stream, '- `/bootstrap [mode]` - Initialize from codebase\n');
-    formatMarkdown(stream, '- `/clear --confirm` - Clear all patterns\n\n');
+    formatMarkdown(stream, '- `/clear --confirm` - Clear all patterns\n');
+        formatMarkdown(stream, '- `/domains` - List available domains\n\n');
 
     formatMarkdown(stream, '**Or just ask a question** - I\'ll search for relevant patterns automatically!\n');
 

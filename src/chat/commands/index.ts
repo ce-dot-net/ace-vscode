@@ -5,3 +5,4 @@ export { handleLearn } from './learn';
 export { handleTop } from './top';
 export { handleBootstrap } from './bootstrap';
 export { handleClear } from './clear';
+export { handleDomains } from './domains';

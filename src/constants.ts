@@ -24,6 +24,7 @@ export const CHAT_COMMANDS = {
     TOP: 'top',
     BOOTSTRAP: 'bootstrap',
     CLEAR: 'clear',
+    DOMAINS: 'domains',
 } as const;
 
 // ACE Server configuration
@@ -31,8 +32,8 @@ export const DEFAULT_SERVER_URL = 'https://ace-api.code-engine.app';
 
 // Agent files version - bump this ONLY when agent file CONTENT changes
 // This is separate from extension version - only triggers update popup when agent files have new content
-// Current: 0.4.17 (enhanced instructions for mid-conversation topic change re-search)
-export const AGENT_FILES_VERSION = '0.4.17';
+// Current: 0.4.18 (domain-aware search with /domains command and filtering)
+export const AGENT_FILES_VERSION = '0.4.18';
 
 // Global config path (XDG standard, same as @ace-sdk/core)
 export const getGlobalConfigPath = (): string => {

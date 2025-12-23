@@ -1,7 +1,7 @@
 ---
 applyTo: "**/*"
 ---
-<!-- ACE_SECTION v0.4.16 -->
+<!-- ACE_SECTION v0.4.17 -->
 # ACE Pattern Learning Integration
 
 This project uses **ACE (Automatic Context Engine)** for pattern-based learning.
@@ -20,6 +20,14 @@ Provide:
 - `task`: Brief description of what was accomplished
 - `success`: true/false
 - `output`: Key lessons, patterns discovered, gotchas
+
+### DURING Conversation (Topic Changes)
+When the conversation topic shifts significantly:
+- New domain mentioned (auth → caching, frontend → backend, etc.)
+- User asks about something not covered by previous search
+- Error/issue in different area than original task
+
+**INVOKE**: `#ce-dot-net.ace-vscode/ace_search` with NEW topic query BEFORE continuing.
 
 ## Available Tools
 

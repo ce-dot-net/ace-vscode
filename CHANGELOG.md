@@ -5,6 +5,29 @@ All notable changes to ACE for VSCode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.18] - 2025-12-23
+
+### Added
+- **Domain listing command**: `/domains` shows available domains with pattern counts
+  - Lists all domains grouped by size (Major/Medium/Small)
+  - Sorted by pattern count descending
+  - Shows domain names for use with filtering
+- **Domain-filtered search**: Filter search results by domain
+  - `/search <query> --allowed-domains <domain1,domain2>` (whitelist)
+  - `/search <query> --blocked-domains <domain1,domain2>` (blacklist)
+  - `ace_search` tool supports `allowed_domains` and `blocked_domains` parameters
+- **Domain stats in status**: `/status` now shows top 5 domains with pattern counts
+- **New PlaybookStats fields**: `by_domain`, `helpful_total`, `harmful_total`
+- **Domain-aware workflow instructions**: Updated instructions and SKILL.md with domain filtering examples
+
+### Changed
+- Updated `@ace-sdk/core` from ^2.2.0 to ^2.3.1
+- Agent files version bumped to 0.4.18 (will prompt for update)
+- Instructions now include domain discovery and filtering workflow
+
+### Closes
+- Issue #7: feat: Support domain listing via PlaybookStats.by_domain (core v2.3.1)
+
 ## [0.4.17] - 2025-12-22
 
 ### Added

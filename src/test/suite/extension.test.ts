@@ -23,7 +23,7 @@ suite('ACE Extension Test Suite', () => {
         assert.ok(pkg, 'Package JSON should exist');
         assert.strictEqual(pkg.name, 'ace-vscode', 'Extension name should match');
         assert.strictEqual(pkg.publisher, 'ce-dot-net', 'Publisher should match');
-        assert.strictEqual(pkg.version, '0.4.17', 'Version should be 0.4.17');
+        assert.strictEqual(pkg.version, '0.4.18', 'Version should be 0.4.18');
     });
 
     test('Extension should declare all 7 commands in package.json', () => {
@@ -48,14 +48,14 @@ suite('ACE Extension Test Suite', () => {
         }
     });
 
-    test('Extension should declare chat participant with 7 commands', () => {
+    test('Extension should declare chat participant with 8 commands', () => {
         const ext = vscode.extensions.getExtension('ce-dot-net.ace-vscode');
         const participants = ext?.packageJSON?.contributes?.chatParticipants || [];
 
         const aceParticipant = participants.find((p: { id: string }) => p.id === 'ace-vscode.ace');
         assert.ok(aceParticipant, 'ACE chat participant should be declared');
         assert.strictEqual(aceParticipant.name, 'ace', 'Participant name should be ace');
-        assert.strictEqual(aceParticipant.commands.length, 7, 'Should have 7 chat commands');
+        assert.strictEqual(aceParticipant.commands.length, 8, 'Should have 8 chat commands (including domains)');
     });
 
     test('Extension should declare 4 language model tools', () => {

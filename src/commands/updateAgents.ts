@@ -341,12 +341,27 @@ When the conversation topic shifts significantly:
 
 **INVOKE**: \`#ce-dot-net.ace-vscode/ace_search\` with NEW topic query BEFORE continuing.
 
+## Domain-Aware Search (v0.4.18)
+
+**List domains:** Use \`/domains\` to see available domains with pattern counts.
+
+**Filter search by domain:**
+- \`ace_search query --allowed-domains <domain1,domain2>\`
+- \`ace_search query --blocked-domains <domain1,domain2>\`
+
+**When topic changes, search in relevant domain:**
+1. Detect topic change (auth → caching, API → database, etc.)
+2. Use \`/domains\` to discover relevant domain name
+3. Call \`ace_search\` with \`allowed_domains\` parameter
+
+Example domains: \`vscode-extension-architecture-and-development\`, \`git-operations\`, \`node-express-jwt-authentication\`
+
 ## Available Tools
 
-- \`#ce-dot-net.ace-vscode/ace_search\` - Find relevant patterns (BEFORE work)
+- \`#ce-dot-net.ace-vscode/ace_search\` - Find relevant patterns (BEFORE work, supports domain filtering)
 - \`#ce-dot-net.ace-vscode/ace_learn\` - Capture patterns (AFTER work)
 - \`#ce-dot-net.ace-vscode/ace_get_playbook\` - View all patterns
-- \`#ce-dot-net.ace-vscode/ace_status\` - Show statistics
+- \`#ce-dot-net.ace-vscode/ace_status\` - Show statistics and top domains
 
 **Remember: ace_search BEFORE, ace_learn AFTER - BOTH are MANDATORY!**
 <!-- ACE_SECTION_END -->
@@ -409,7 +424,15 @@ If user's follow-up message introduces a NEW topic or domain:
 - "Let's add tests" (after implementation)
 - "Now handle the error cases" (new domain)
 
-## Example Workflow
+## Domain-Filtered Search (v0.4.18)
+
+After topic change detection, use domain filtering for targeted retrieval:
+
+1. **List domains**: \`/domains\` to see available domains
+2. **Match topic to domain**: Find domain name matching new topic
+3. **Filtered search**: \`ace_search <query> allowed_domains=<domain>\`
+
+## Example Workflow (with Domain Filtering)
 
 \`\`\`
 User: "implement JWT authentication"
@@ -421,10 +444,12 @@ User: "implement JWT authentication"
 
 User: "Now add Redis caching for the tokens"
     ↓
-1. ace_search("Redis caching tokens") → NEW SEARCH for new topic!
-2. Implement caching using patterns found
-3. ace_learn(task="Added Redis token caching", success=true, output="Used TTL matching token expiry")
-4. Respond to user
+1. [Topic shift detected: auth → caching]
+2. /domains → sees available domains
+3. ace_search("Redis caching" allowed_domains="caching,redis") → Targeted patterns
+4. Implement caching using patterns found
+5. ace_learn(task="Added Redis token caching", success=true, output="Used TTL matching token expiry")
+6. Respond to user
 \`\`\`
 <!-- ACE_SECTION_END -->
 `;
@@ -474,6 +499,13 @@ Provide:
 - success: true/false
 - output: Lessons learned, patterns discovered
 
+## Domain-Aware Search (v0.4.18)
+
+**When topic changes**, discover and filter by domain:
+1. Use \`/domains\` to list available domains
+2. Match topic to domain name
+3. Use \`ace_search\` with \`allowed_domains\` parameter
+
 ## ✅ Example Flow
 
 \`\`\`
@@ -483,6 +515,15 @@ User: "implement JWT authentication"
 2. Implement using patterns
 3. ace_learn(task="Implemented JWT auth", success=true, output="Used refresh token rotation")
 4. Respond to user
+
+User: "Now work on the UI"
+    ↓
+1. [Topic shift: auth → UI]
+2. /domains → finds "vscode-extension-ui-development"
+3. ace_search("UI" allowed_domains="vscode-extension-ui-development")
+4. Implement with UI-specific patterns
+5. ace_learn(...)
+6. Respond to user
 \`\`\`
 
 `;

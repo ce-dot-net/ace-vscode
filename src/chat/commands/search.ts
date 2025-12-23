@@ -19,24 +19,64 @@ export async function handleSearch(
     }
 
     const { client, folder } = clientInfo;
-    const query = request.prompt.trim();
+    const promptText = request.prompt.trim();
+
+    // Parse domain filters from prompt
+    const allowedDomainsMatch = promptText.match(/--allowed-domains\s+([^\s]+)/);
+    const blockedDomainsMatch = promptText.match(/--blocked-domains\s+([^\s]+)/);
+
+    const allowedDomains = allowedDomainsMatch ? allowedDomainsMatch[1].split(',').map(d => d.trim()) : undefined;
+    const blockedDomains = blockedDomainsMatch ? blockedDomainsMatch[1].split(',').map(d => d.trim()) : undefined;
+
+    // Remove flags from query
+    const query = promptText
+        .replace(/--allowed-domains\s+[^\s]+/, '')
+        .replace(/--blocked-domains\s+[^\s]+/, '')
+        .trim();
 
     if (!query) {
         formatError(stream, 'Please provide a search query. Example: `@ace /search authentication patterns`');
+        formatMarkdown(stream, '\n**Domain filtering:**\n');
+        formatMarkdown(stream, '- `@ace /search <query> --allowed-domains <domain1,domain2>`\n');
+        formatMarkdown(stream, '- `@ace /search <query> --blocked-domains <domain1,domain2>`\n');
+        formatMarkdown(stream, '\nUse `/domains` to list available domains.\n');
         return { metadata: { command: 'search' } };
     }
 
     formatSectionHeader(stream, 'Pattern Search');
     formatProjectContext(stream, folder);
-    formatMarkdown(stream, `🔍 Searching for: **${query}**\n\n`);
+
+    const domainInfo = allowedDomains
+        ? ` in **${allowedDomains.join(', ')}**`
+        : blockedDomains
+            ? ` (excluding ${blockedDomains.join(', ')})`
+            : '';
+    formatMarkdown(stream, `🔍 Searching for: **${query}**${domainInfo}\n\n`);
 
     try {
-        const result = await client.searchPatterns({
+        // Build search options with optional domain filtering
+        const searchOptions: {
+            query: string;
+            threshold: number;
+            top_k: number;
+            include_metadata: boolean;
+            allowed_domains?: string[];
+            blocked_domains?: string[];
+        } = {
             query,
             threshold: 0.75,
             top_k: 10,
             include_metadata: true
-        });
+        };
+
+        if (allowedDomains) {
+            searchOptions.allowed_domains = allowedDomains;
+        }
+        if (blockedDomains) {
+            searchOptions.blocked_domains = blockedDomains;
+        }
+
+        const result = await client.searchPatterns(searchOptions);
 
         const patterns: PlaybookBullet[] = result.similar_patterns || [];
 

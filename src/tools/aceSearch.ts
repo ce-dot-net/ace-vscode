@@ -4,6 +4,8 @@ import type { PlaybookBullet } from '@ace-sdk/core';
 
 interface AceSearchInput {
     query: string;
+    allowed_domains?: string;
+    blocked_domains?: string;
 }
 
 /**
@@ -15,7 +17,7 @@ export class AceSearchTool implements vscode.LanguageModelTool<AceSearchInput> {
         options: vscode.LanguageModelToolInvocationOptions<AceSearchInput>,
         _token: vscode.CancellationToken
     ): Promise<vscode.LanguageModelToolResult> {
-        const { query } = options.input;
+        const { query, allowed_domains, blocked_domains } = options.input;
         const client = getAceClient();
 
         if (!client) {
@@ -25,18 +27,41 @@ export class AceSearchTool implements vscode.LanguageModelTool<AceSearchInput> {
         }
 
         try {
-            const result = await client.searchPatterns({
+            // Build search options with optional domain filtering
+            const searchOptions: {
+                query: string;
+                threshold: number;
+                top_k: number;
+                include_metadata: boolean;
+                allowed_domains?: string[];
+                blocked_domains?: string[];
+            } = {
                 query,
                 threshold: 0.75,
                 top_k: 10,
                 include_metadata: true
-            });
+            };
+
+            // Parse comma-separated domain lists
+            if (allowed_domains) {
+                searchOptions.allowed_domains = allowed_domains.split(',').map(d => d.trim());
+            }
+            if (blocked_domains) {
+                searchOptions.blocked_domains = blocked_domains.split(',').map(d => d.trim());
+            }
+
+            const result = await client.searchPatterns(searchOptions);
 
             const patterns: PlaybookBullet[] = result.similar_patterns || [];
             const count = patterns.length;
 
             // Format verbose output matching CLI plugin style
-            let output = `✅ **[ACE] Found ${count} relevant patterns**\n\n`;
+            const domainFilter = allowed_domains
+                ? ` in domain(s): ${allowed_domains}`
+                : blocked_domains
+                    ? ` (excluding: ${blocked_domains})`
+                    : '';
+            let output = `✅ **[ACE] Found ${count} relevant patterns**${domainFilter}\n\n`;
 
             if (count === 0) {
                 output += `_No patterns found matching "${query}"_\n`;

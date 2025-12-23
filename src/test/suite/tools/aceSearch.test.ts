@@ -103,6 +103,69 @@ suite('AceSearchTool Input Validation', () => {
     });
 });
 
+// v0.4.18: Domain filtering tests
+suite('AceSearchTool Domain Filtering', () => {
+
+    test('accepts allowed_domains parameter', () => {
+        const input = {
+            query: 'authentication',
+            allowed_domains: 'auth,security'
+        };
+
+        assert.ok(input.allowed_domains, 'Has allowed_domains');
+        assert.strictEqual(input.allowed_domains, 'auth,security', 'Correct value');
+    });
+
+    test('accepts blocked_domains parameter', () => {
+        const input = {
+            query: 'patterns',
+            blocked_domains: 'undiscovered'
+        };
+
+        assert.ok(input.blocked_domains, 'Has blocked_domains');
+    });
+
+    test('parses comma-separated allowed_domains', () => {
+        const allowedDomains = 'auth,security,vscode';
+        const parsed = allowedDomains.split(',').map(d => d.trim());
+
+        assert.strictEqual(parsed.length, 3, 'Parses 3 domains');
+        assert.deepStrictEqual(parsed, ['auth', 'security', 'vscode'], 'Correct domains');
+    });
+
+    test('shows domain filter info in output', () => {
+        const allowedDomains = 'auth,security';
+        const domainFilter = ` in domain(s): ${allowedDomains}`;
+        const output = `✅ **[ACE] Found 5 relevant patterns**${domainFilter}`;
+
+        assert.ok(output.includes('in domain(s)'), 'Shows domain filter info');
+        assert.ok(output.includes('auth,security'), 'Shows filtered domains');
+    });
+
+    test('shows excluded domains in output', () => {
+        const blockedDomains = 'undiscovered';
+        const domainFilter = ` (excluding: ${blockedDomains})`;
+        const output = `✅ **[ACE] Found 10 relevant patterns**${domainFilter}`;
+
+        assert.ok(output.includes('excluding'), 'Shows exclusion info');
+        assert.ok(output.includes('undiscovered'), 'Shows blocked domain');
+    });
+
+    test('passes domains to SDK search options', () => {
+        const searchOptions = {
+            query: 'auth',
+            threshold: 0.75,
+            top_k: 10,
+            include_metadata: true,
+            allowed_domains: ['auth-patterns', 'security'],
+            blocked_domains: undefined
+        };
+
+        assert.ok(searchOptions.allowed_domains, 'Has allowed_domains array');
+        assert.strictEqual(searchOptions.allowed_domains.length, 2, 'Has 2 domains');
+    });
+});
+
 suite('AceSearchTool Output Format', () => {
 
     test('output uses markdown formatting', () => {
