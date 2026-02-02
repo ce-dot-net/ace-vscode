@@ -31,6 +31,10 @@ export const CHAT_COMMANDS = {
 // ACE Server configuration
 export const DEFAULT_SERVER_URL = 'https://ace-api.code-engine.app';
 
+// External URLs
+export const DEVICE_MANAGEMENT_URL = 'https://ace.code-engine.app/dashboard/devices';
+export const DEVICE_LIMITS_DOCS_URL = 'https://docs.code-engine.app/ace/device-limits';
+
 // Agent files version - bump this ONLY when agent file CONTENT changes
 // This is separate from extension version - only triggers update popup when agent files have new content
 // Current: 0.4.18 (domain-aware search with /domains command and filtering)

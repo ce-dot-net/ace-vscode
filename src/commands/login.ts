@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { login, type CurrentUser, type LoginOptions } from '@ace-sdk/core';
 import { invalidateClient } from '../services/aceClient';
+import { DEVICE_MANAGEMENT_URL, DEVICE_LIMITS_DOCS_URL } from '../constants';
 
 /**
  * ACE Login Command - Device Code Authentication Flow
@@ -9,7 +10,6 @@ import { invalidateClient } from '../services/aceClient';
  * Uses SDK Core's device code flow (RFC 8628).
  */
 export async function handleLogin(): Promise<void> {
-    // Create AbortController for SDK login cancellation
     const abortController = new AbortController();
 
     try {
@@ -20,17 +20,14 @@ export async function handleLogin(): Promise<void> {
                 cancellable: true,
             },
             async (progress, token) => {
-                // Map VS Code cancellation to AbortController
                 token.onCancellationRequested(() => {
                     abortController.abort();
                 });
 
-                // Configure login options
                 const loginOptions: LoginOptions = {
                     clientType: 'vscode',
                     signal: abortController.signal,
 
-                    // Show user code with action buttons
                     onUserCode: async (userCode, verificationUri) => {
                         progress.report({ message: 'Waiting for authorization...' });
 
@@ -49,31 +46,22 @@ export async function handleLogin(): Promise<void> {
                         }
                     },
 
-                    // Show progress updates
                     onProgress: (message) => {
                         progress.report({ message });
                     },
 
-                    // Handle successful login
                     onSuccess: (user: CurrentUser) => {
                         vscode.window.showInformationMessage(
-                            `✅ Logged in as ${user.email}`
+                            `Logged in as ${user.email}`
                         );
                     },
                 };
 
                 try {
-                    // Execute login flow (SDK handles device code request, polling, and saving)
                     await login(loginOptions);
-
-                    // Invalidate cached clients so they pick up new auth
                     invalidateClient();
-
-                } catch (error: any) {
-                    // Handle device limit exceeded error
-                    if (error.message?.includes('device limit exceeded') ||
-                        error.response?.data?.error_code === 'device_limit_exceeded') {
-
+                } catch (error: unknown) {
+                    if (isDeviceLimitError(error)) {
                         const action = await vscode.window.showErrorMessage(
                             'Device limit reached. Revoke another device to continue.',
                             'Manage Devices',
@@ -82,30 +70,40 @@ export async function handleLogin(): Promise<void> {
 
                         if (action === 'Manage Devices') {
                             await vscode.env.openExternal(
-                                vscode.Uri.parse('https://ace.code-engine.app/dashboard/devices')
+                                vscode.Uri.parse(DEVICE_MANAGEMENT_URL)
                             );
                         } else if (action === 'Learn More') {
                             await vscode.env.openExternal(
-                                vscode.Uri.parse('https://docs.code-engine.app/ace/device-limits')
+                                vscode.Uri.parse(DEVICE_LIMITS_DOCS_URL)
                             );
                         }
                         return;
                     }
 
-                    // User cancelled
-                    if (error.name === 'AbortError') {
+                    if (error instanceof Error && error.name === 'AbortError') {
                         vscode.window.showInformationMessage('Login cancelled');
                         return;
                     }
 
-                    // Other errors
                     throw error;
                 }
             }
         );
-    } catch (error: any) {
-        vscode.window.showErrorMessage(
-            `ACE Login failed: ${error.message || 'Unknown error'}`
-        );
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        vscode.window.showErrorMessage(`ACE Login failed: ${message}`);
     }
+}
+
+function isDeviceLimitError(error: unknown): boolean {
+    if (error instanceof Error && error.message.includes('device limit exceeded')) {
+        return true;
+    }
+    if (typeof error === 'object' && error !== null) {
+        const err = error as Record<string, unknown>;
+        const response = err.response as Record<string, unknown> | undefined;
+        const data = response?.data as Record<string, unknown> | undefined;
+        return data?.error_code === 'device_limit_exceeded';
+    }
+    return false;
 }

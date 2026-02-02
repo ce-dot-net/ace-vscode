@@ -82,8 +82,10 @@ export function activate(context: vscode.ExtensionContext): void {
     // Show welcome/status message
     showActivationStatus();
 
-    // Check token expiration (hard cap and refresh token only)
+    // Check token expiration periodically (hard cap and refresh token only)
     checkTokenExpiration();
+    const expirationCheckInterval = setInterval(checkTokenExpiration, 60 * 60 * 1000); // every hour
+    context.subscriptions.push({ dispose: () => clearInterval(expirationCheckInterval) });
 
     console.log('ACE extension activated successfully');
 }
