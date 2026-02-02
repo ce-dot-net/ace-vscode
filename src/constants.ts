@@ -8,6 +8,7 @@ export const PARTICIPANT_ID = `${EXTENSION_ID}.ace`;
 // Commands
 export const COMMANDS = {
     CONFIGURE: `${EXTENSION_ID}.configure`,
+    LOGIN: `${EXTENSION_ID}.login`,
     BOOTSTRAP: `${EXTENSION_ID}.bootstrap`,
     CLEAR: `${EXTENSION_ID}.clear`,
     CAPTURE_LEARN: `${EXTENSION_ID}.captureLearn`,
