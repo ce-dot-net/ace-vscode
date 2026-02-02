@@ -1,7 +1,9 @@
 import * as vscode from 'vscode';
-import { login, type CurrentUser, type LoginOptions } from '@ace-sdk/core';
+import { login, type LoginOptions } from '@ace-sdk/core';
 import { invalidateClient } from '../services/aceClient';
-import { DEVICE_MANAGEMENT_URL, DEVICE_LIMITS_DOCS_URL } from '../constants';
+import { COMMANDS, DEVICE_MANAGEMENT_URL, DEVICE_LIMITS_DOCS_URL } from '../constants';
+import { isDeviceLimitError, isValidVerificationUri } from '../utils/loginHelpers';
+import { resetAuthNotifications } from '../services/authMonitor';
 
 /**
  * ACE Login Command - Device Code Authentication Flow
@@ -31,6 +33,10 @@ export async function handleLogin(): Promise<void> {
                     onUserCode: async (userCode, verificationUri) => {
                         progress.report({ message: 'Waiting for authorization...' });
 
+                        if (!isValidVerificationUri(verificationUri)) {
+                            throw new Error('Invalid verification URI received from server');
+                        }
+
                         const action = await vscode.window.showInformationMessage(
                             `Your code: ${userCode}`,
                             { modal: true },
@@ -42,7 +48,10 @@ export async function handleLogin(): Promise<void> {
                             await vscode.env.openExternal(vscode.Uri.parse(verificationUri));
                         } else if (action === 'Copy Code') {
                             await vscode.env.clipboard.writeText(userCode);
-                            vscode.window.showInformationMessage('Code copied to clipboard!');
+                            await vscode.window.showInformationMessage('Code copied to clipboard!');
+                        } else {
+                            // User dismissed modal — show code in progress so they can still proceed
+                            progress.report({ message: `Code: ${userCode} — Open browser to complete login` });
                         }
                     },
 
@@ -50,16 +59,16 @@ export async function handleLogin(): Promise<void> {
                         progress.report({ message });
                     },
 
-                    onSuccess: (user: CurrentUser) => {
-                        vscode.window.showInformationMessage(
-                            `Logged in as ${user.email}`
-                        );
+                    onSuccess: () => {
+                        // Note: success notification shown after invalidateClient() below
                     },
                 };
 
                 try {
-                    await login(loginOptions);
+                    const user = await login(loginOptions);
                     invalidateClient();
+                    resetAuthNotifications();
+                    vscode.window.showInformationMessage(`Logged in as ${user.email}`);
                 } catch (error: unknown) {
                     if (isDeviceLimitError(error)) {
                         const action = await vscode.window.showErrorMessage(
@@ -90,20 +99,7 @@ export async function handleLogin(): Promise<void> {
             }
         );
     } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        vscode.window.showErrorMessage(`ACE Login failed: ${message}`);
+        console.error('ACE Login failed:', error);
+        vscode.window.showErrorMessage('ACE Login failed. Check the output panel for details.');
     }
-}
-
-function isDeviceLimitError(error: unknown): boolean {
-    if (error instanceof Error && error.message.includes('device limit exceeded')) {
-        return true;
-    }
-    if (typeof error === 'object' && error !== null) {
-        const err = error as Record<string, unknown>;
-        const response = err.response as Record<string, unknown> | undefined;
-        const data = response?.data as Record<string, unknown> | undefined;
-        return data?.error_code === 'device_limit_exceeded';
-    }
-    return false;
 }

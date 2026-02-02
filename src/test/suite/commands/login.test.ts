@@ -1,13 +1,20 @@
 import * as assert from 'assert';
-import { COMMANDS, DEVICE_MANAGEMENT_URL, DEVICE_LIMITS_DOCS_URL } from '../../../constants';
+import {
+    COMMANDS,
+    DEVICE_MANAGEMENT_URL,
+    DEVICE_LIMITS_DOCS_URL,
+    TOKEN_CHECK_INTERVAL_MS,
+    HARD_CAP_WARNING_HOURS,
+} from '../../../constants';
+import { isDeviceLimitError, isValidVerificationUri } from '../../../utils/loginHelpers';
 
 /**
  * Unit tests for Login command
- * Tests device code authentication workflow configuration and constants
+ * Tests exported helper functions and configuration constants
  */
 suite('Login Command Tests', () => {
 
-    test('LOGIN command is registered with correct ID', () => {
+    test('LOGIN command constant has correct ID', () => {
         assert.strictEqual(COMMANDS.LOGIN, 'ace-vscode.login');
     });
 
@@ -24,60 +31,110 @@ suite('Login Command Tests', () => {
             'Device limits docs URL must use HTTPS'
         );
     });
+});
 
-    test('device limit error detection matches expected string', () => {
-        const errorMessage = 'device limit exceeded';
-        assert.ok(
-            errorMessage.includes('device limit exceeded'),
-            'Should detect device limit error from message'
-        );
+suite('isDeviceLimitError', () => {
+
+    test('detects Error with "device limit exceeded" message', () => {
+        const error = new Error('device limit exceeded');
+        assert.strictEqual(isDeviceLimitError(error), true);
     });
 
-    test('AbortError name matches cancellation pattern', () => {
-        const abortError = new DOMException('The operation was aborted', 'AbortError');
-        assert.strictEqual(abortError.name, 'AbortError');
+    test('detects message case-insensitively', () => {
+        const error = new Error('Device Limit Exceeded for this account');
+        assert.strictEqual(isDeviceLimitError(error), true);
     });
 
-    test('AbortController signal starts as not aborted', () => {
-        const controller = new AbortController();
-        assert.strictEqual(controller.signal.aborted, false);
+    test('detects Axios-style response with error_code', () => {
+        const error = {
+            response: {
+                data: { error_code: 'device_limit_exceeded' },
+            },
+        };
+        assert.strictEqual(isDeviceLimitError(error), true);
     });
 
-    test('AbortController signal reflects abort', () => {
-        const controller = new AbortController();
-        controller.abort();
-        assert.strictEqual(controller.signal.aborted, true);
+    test('returns false for unrelated Error', () => {
+        const error = new Error('network timeout');
+        assert.strictEqual(isDeviceLimitError(error), false);
+    });
+
+    test('returns false for null', () => {
+        assert.strictEqual(isDeviceLimitError(null), false);
+    });
+
+    test('returns false for string', () => {
+        assert.strictEqual(isDeviceLimitError('device limit exceeded'), false);
+    });
+
+    test('returns false for object without response', () => {
+        assert.strictEqual(isDeviceLimitError({ code: 'LIMIT' }), false);
+    });
+
+    test('returns false for object with non-object response', () => {
+        assert.strictEqual(isDeviceLimitError({ response: 'not an object' }), false);
+    });
+
+    test('returns false for response without data', () => {
+        assert.strictEqual(isDeviceLimitError({ response: {} }), false);
+    });
+
+    test('returns false for wrong error_code', () => {
+        const error = {
+            response: {
+                data: { error_code: 'rate_limited' },
+            },
+        };
+        assert.strictEqual(isDeviceLimitError(error), false);
     });
 });
 
-suite('Token Expiration Logic Tests', () => {
+suite('isValidVerificationUri', () => {
 
-    test('expired refresh token is detected', () => {
-        const refreshExpiresAt = Date.now() - (24 * 60 * 60 * 1000); // 24h ago
-        const now = Date.now();
-        assert.ok(refreshExpiresAt < now, 'Past date should be detected as expired');
+    test('accepts valid HTTPS URI', () => {
+        assert.strictEqual(
+            isValidVerificationUri('https://auth.example.com/device?code=ABC'),
+            true
+        );
     });
 
-    test('future refresh token is not expired', () => {
-        const refreshExpiresAt = Date.now() + (30 * 24 * 60 * 60 * 1000); // 30d from now
-        const now = Date.now();
-        assert.ok(refreshExpiresAt > now, 'Future date should not be expired');
+    test('rejects HTTP URI', () => {
+        assert.strictEqual(
+            isValidVerificationUri('http://auth.example.com/device'),
+            false
+        );
     });
 
-    test('absolute cap within 24h triggers warning', () => {
-        const absoluteExpiresAt = Date.now() + (12 * 60 * 60 * 1000); // 12h from now
-        const hoursRemaining = (absoluteExpiresAt - Date.now()) / (1000 * 60 * 60);
-        assert.ok(hoursRemaining < 24 && hoursRemaining > 0, 'Should trigger warning');
+    test('rejects javascript: URI', () => {
+        assert.strictEqual(
+            isValidVerificationUri('javascript:alert(1)'),
+            false
+        );
     });
 
-    test('absolute cap beyond 24h does not trigger warning', () => {
-        const absoluteExpiresAt = Date.now() + (48 * 60 * 60 * 1000); // 48h from now
-        const hoursRemaining = (absoluteExpiresAt - Date.now()) / (1000 * 60 * 60);
-        assert.ok(hoursRemaining >= 24, 'Should not trigger warning');
+    test('rejects file: URI', () => {
+        assert.strictEqual(
+            isValidVerificationUri('file:///etc/passwd'),
+            false
+        );
     });
 
-    test('hours remaining rounds correctly for display', () => {
-        const hoursRemaining = 11.7;
-        assert.strictEqual(Math.round(hoursRemaining), 12);
+    test('rejects empty string', () => {
+        assert.strictEqual(isValidVerificationUri(''), false);
+    });
+
+    test('rejects malformed URI', () => {
+        assert.strictEqual(isValidVerificationUri('not a url'), false);
+    });
+});
+
+suite('Token Expiration Constants', () => {
+
+    test('check interval is 1 hour in milliseconds', () => {
+        assert.strictEqual(TOKEN_CHECK_INTERVAL_MS, 3_600_000);
+    });
+
+    test('hard cap warning threshold is 24 hours', () => {
+        assert.strictEqual(HARD_CAP_WARNING_HOURS, 24);
     });
 });

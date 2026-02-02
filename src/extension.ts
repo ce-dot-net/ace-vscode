@@ -7,7 +7,7 @@ import { activateUI, StatusPanel } from './ui';
 import { AceSearchTool, AceLearnTool, AceStatusTool, AcePlaybookTool } from './tools';
 import { invalidateClient } from './services/aceClient';
 import { checkAgentFilesUpdate } from './commands/updateAgents';
-import { loadUserAuth } from '@ace-sdk/core';
+import { startAuthMonitor } from './services/authMonitor';
 
 /**
  * Extension activation
@@ -82,10 +82,8 @@ export function activate(context: vscode.ExtensionContext): void {
     // Show welcome/status message
     showActivationStatus();
 
-    // Check token expiration periodically (hard cap and refresh token only)
-    checkTokenExpiration();
-    const expirationCheckInterval = setInterval(checkTokenExpiration, 60 * 60 * 1000); // every hour
-    context.subscriptions.push({ dispose: () => clearInterval(expirationCheckInterval) });
+    // Start token expiration monitoring (hard cap and refresh token only)
+    startAuthMonitor(context);
 
     console.log('ACE extension activated successfully');
 }
@@ -133,66 +131,6 @@ function registerAceTools(context: vscode.ExtensionContext): void {
     );
 
     console.log('ACE tools registered: ace_search, ace_learn, ace_status, ace_get_playbook');
-}
-
-/**
- * Check token expiration and warn user proactively
- *
- * IMPORTANT: Only warns about:
- * 1. 7-day hard cap approaching (absolute_expires_at < 24h)
- * 2. Refresh token expired (refresh_expires_at in past)
- *
- * Does NOT warn about access token expiration - sliding window extends it on every use.
- */
-function checkTokenExpiration(): void {
-    try {
-        const auth = loadUserAuth();
-        if (!auth) {
-            return; // No auth = user hasn't logged in yet
-        }
-
-        const now = Date.now();
-
-        // Check if refresh token is expired (can't auto-recover from this)
-        if (auth.refresh_expires_at) {
-            const refreshExpiresAt = new Date(auth.refresh_expires_at).getTime();
-            if (refreshExpiresAt < now) {
-                vscode.window.showErrorMessage(
-                    'ACE session expired. Please login again.',
-                    'Login'
-                ).then(action => {
-                    if (action === 'Login') {
-                        vscode.commands.executeCommand('ace-vscode.login');
-                    }
-                });
-                return;
-            }
-        }
-
-        // Check if absolute cap (7-day hard limit) is approaching
-        if (auth.absolute_expires_at) {
-            const absoluteExpiresAt = new Date(auth.absolute_expires_at).getTime();
-            const hoursRemaining = (absoluteExpiresAt - now) / (1000 * 60 * 60);
-
-            if (hoursRemaining < 24 && hoursRemaining > 0) {
-                vscode.window.showWarningMessage(
-                    `ACE 7-day session limit approaching (${Math.round(hoursRemaining)}h). Must re-login soon.`,
-                    'Login Now'
-                ).then(action => {
-                    if (action === 'Login Now') {
-                        vscode.commands.executeCommand('ace-vscode.login');
-                    }
-                });
-            }
-        }
-
-        // DO NOT warn about access token expiration!
-        // Sliding window extends it on every API call.
-        // SDK's ensureValidToken() handles automatic refresh.
-
-    } catch (error) {
-        console.error('ACE: Failed to check token expiration:', error);
-    }
 }
 
 /**
