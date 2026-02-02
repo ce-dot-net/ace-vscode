@@ -53,13 +53,13 @@ suite('Login Command Tests', () => {
 suite('Token Expiration Logic Tests', () => {
 
     test('expired refresh token is detected', () => {
-        const refreshExpiresAt = new Date('2025-01-01T00:00:00Z').getTime();
+        const refreshExpiresAt = Date.now() - (24 * 60 * 60 * 1000); // 24h ago
         const now = Date.now();
         assert.ok(refreshExpiresAt < now, 'Past date should be detected as expired');
     });
 
     test('future refresh token is not expired', () => {
-        const refreshExpiresAt = new Date('2099-01-01T00:00:00Z').getTime();
+        const refreshExpiresAt = Date.now() + (30 * 24 * 60 * 60 * 1000); // 30d from now
         const now = Date.now();
         assert.ok(refreshExpiresAt > now, 'Future date should not be expired');
     });
