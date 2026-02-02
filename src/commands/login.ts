@@ -115,7 +115,7 @@ export async function handleLogin(): Promise<void> {
             }
         );
     } catch (error: unknown) {
-        console.error('ACE Login failed:', error);
+        console.error('ACE Login failed:', error instanceof Error ? error.message : 'Unknown error');
         vscode.window.showErrorMessage('ACE Login failed. See Developer Tools for details.');
     } finally {
         loginInProgress = false;

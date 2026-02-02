@@ -78,6 +78,6 @@ function checkTokenExpiration(): void {
             }, console.error);
         }
     } catch (error) {
-        console.error('ACE: Failed to check token expiration:', error);
+        console.error('ACE: Failed to check token expiration:', error instanceof Error ? error.message : 'Unknown error');
     }
 }
