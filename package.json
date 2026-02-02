@@ -194,6 +194,14 @@
       {
         "command": "ace-vscode.showStatus",
         "title": "ACE: Show Playbook Status"
+      },
+      {
+        "command": "ace-vscode.login",
+        "title": "ACE: Login with Browser"
+      },
+      {
+        "command": "ace-vscode.logout",
+        "title": "ACE: Logout"
       }
     ],
     "configuration": {
@@ -266,7 +274,7 @@
     "test": "vscode-test"
   },
   "dependencies": {
-    "@ace-sdk/core": "^2.3.1"
+    "@ace-sdk/core": "^2.9.1"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
