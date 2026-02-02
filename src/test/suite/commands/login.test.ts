@@ -50,11 +50,10 @@ suite('isDeviceLimitError', () => {
         assert.strictEqual(isDeviceLimitError(error), true);
     });
 
-    test('detects Axios Error with response property', () => {
-        const error = new Error('Request failed with status 429');
-        (error as Error & { response: unknown }).response = {
-            data: { error_code: 'device_limit_exceeded' },
-        };
+    test('detects Error that also carries an Axios-style response', () => {
+        const error = Object.assign(new Error('Request failed with status 429'), {
+            response: { data: { error_code: 'device_limit_exceeded' } },
+        });
         assert.strictEqual(isDeviceLimitError(error), true);
     });
 

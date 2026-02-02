@@ -8,6 +8,54 @@ import { resetAuthNotifications } from '../services/authMonitor';
 let loginInProgress = false;
 
 /**
+ * Present the device code to the user and offer to open the browser or copy.
+ */
+async function presentUserCode(
+    progress: vscode.Progress<{ message?: string }>,
+    userCode: string,
+    verificationUri: string,
+): Promise<void> {
+    progress.report({ message: 'Waiting for authorization...' });
+
+    if (!isValidVerificationUri(verificationUri)) {
+        throw new Error('Invalid verification URI received from server');
+    }
+
+    const action = await vscode.window.showInformationMessage(
+        `Your code: ${userCode}`,
+        { modal: true },
+        'Open Browser',
+        'Copy Code'
+    );
+
+    if (action === 'Open Browser') {
+        await vscode.env.openExternal(vscode.Uri.parse(verificationUri));
+    } else if (action === 'Copy Code') {
+        await vscode.env.clipboard.writeText(userCode);
+        await vscode.window.showInformationMessage('Code copied to clipboard!');
+    } else {
+        progress.report({ message: `Code: ${userCode} — Open browser to complete login` });
+    }
+}
+
+/**
+ * Show device limit error with options to manage devices or learn more.
+ */
+async function showDeviceLimitOptions(): Promise<void> {
+    const action = await vscode.window.showErrorMessage(
+        'Device limit reached. Revoke another device to continue.',
+        'Manage Devices',
+        'Learn More'
+    );
+
+    if (action === 'Manage Devices') {
+        await vscode.env.openExternal(vscode.Uri.parse(DEVICE_MANAGEMENT_URL));
+    } else if (action === 'Learn More') {
+        await vscode.env.openExternal(vscode.Uri.parse(DEVICE_LIMITS_DOCS_URL));
+    }
+}
+
+/**
  * ACE Login Command - Device Code Authentication Flow
  *
  * Implements browser-based login instead of manual token entry.
@@ -38,30 +86,8 @@ export async function handleLogin(): Promise<void> {
                     clientType: 'vscode',
                     signal: abortController.signal,
 
-                    onUserCode: async (userCode, verificationUri) => {
-                        progress.report({ message: 'Waiting for authorization...' });
-
-                        if (!isValidVerificationUri(verificationUri)) {
-                            throw new Error('Invalid verification URI received from server');
-                        }
-
-                        const action = await vscode.window.showInformationMessage(
-                            `Your code: ${userCode}`,
-                            { modal: true },
-                            'Open Browser',
-                            'Copy Code'
-                        );
-
-                        if (action === 'Open Browser') {
-                            await vscode.env.openExternal(vscode.Uri.parse(verificationUri));
-                        } else if (action === 'Copy Code') {
-                            await vscode.env.clipboard.writeText(userCode);
-                            await vscode.window.showInformationMessage('Code copied to clipboard!');
-                        } else {
-                            // User dismissed modal — show code in progress so they can still proceed
-                            progress.report({ message: `Code: ${userCode} — Open browser to complete login` });
-                        }
-                    },
+                    onUserCode: (userCode, verificationUri) =>
+                        presentUserCode(progress, userCode, verificationUri),
 
                     onProgress: (message) => {
                         progress.report({ message });
@@ -75,21 +101,7 @@ export async function handleLogin(): Promise<void> {
                     vscode.window.showInformationMessage(`Logged in as ${user.email}`);
                 } catch (error: unknown) {
                     if (isDeviceLimitError(error)) {
-                        const action = await vscode.window.showErrorMessage(
-                            'Device limit reached. Revoke another device to continue.',
-                            'Manage Devices',
-                            'Learn More'
-                        );
-
-                        if (action === 'Manage Devices') {
-                            await vscode.env.openExternal(
-                                vscode.Uri.parse(DEVICE_MANAGEMENT_URL)
-                            );
-                        } else if (action === 'Learn More') {
-                            await vscode.env.openExternal(
-                                vscode.Uri.parse(DEVICE_LIMITS_DOCS_URL)
-                            );
-                        }
+                        await showDeviceLimitOptions();
                         return;
                     }
 

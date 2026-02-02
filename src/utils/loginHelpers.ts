@@ -23,21 +23,25 @@ export function isValidVerificationUri(uri: string): boolean {
  * Handles both Error objects with message strings and Axios-style response objects.
  */
 export function isDeviceLimitError(error: unknown): boolean {
-    if (error instanceof Error) {
-        if (error.message.toLowerCase().includes('device limit exceeded')) {
-            return true;
-        }
+    // Error objects: match by message text
+    if (error instanceof Error &&
+        error.message.toLowerCase().includes('device limit exceeded')) {
+        return true;
     }
-    if (typeof error === 'object' && error !== null) {
-        if ('response' in error && typeof (error as { response: unknown }).response === 'object') {
-            const response = (error as { response: { data?: unknown } }).response;
-            if (response && 'data' in response && typeof response.data === 'object' && response.data !== null) {
-                const data = response.data as { error_code?: string };
-                return data.error_code === 'device_limit_exceeded';
-            }
-        }
+
+    // Axios-style: drill through error.response.data.error_code
+    if (typeof error !== 'object' || error === null || !('response' in error)) {
+        return false;
     }
-    return false;
+    const response = (error as { response: unknown }).response;
+    if (typeof response !== 'object' || response === null || !('data' in response)) {
+        return false;
+    }
+    const data = (response as { data: unknown }).data;
+    if (typeof data !== 'object' || data === null) {
+        return false;
+    }
+    return (data as { error_code?: string }).error_code === 'device_limit_exceeded';
 }
 
 /** Result of evaluating token expiration state. */
