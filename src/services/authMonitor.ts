@@ -64,18 +64,18 @@ function checkTokenExpiration(): void {
                 'Login'
             ).then(action => {
                 if (action === 'Login') {
-                    vscode.commands.executeCommand(COMMANDS.LOGIN);
+                    vscode.commands.executeCommand(COMMANDS.LOGIN).then(undefined, console.error);
                 }
-            });
+            }, console.error);
         } else if (result.action === 'warn_hard_cap') {
             vscode.window.showWarningMessage(
                 `ACE 7-day session limit approaching (${result.hoursRemaining}h). Must re-login soon.`,
                 'Login Now'
             ).then(action => {
                 if (action === 'Login Now') {
-                    vscode.commands.executeCommand(COMMANDS.LOGIN);
+                    vscode.commands.executeCommand(COMMANDS.LOGIN).then(undefined, console.error);
                 }
-            });
+            }, console.error);
         }
     } catch (error) {
         console.error('ACE: Failed to check token expiration:', error);

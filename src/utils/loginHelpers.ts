@@ -80,7 +80,14 @@ export function evaluateTokenExpiration(input: {
         const expiresMs = new Date(absoluteExpiresAt).getTime();
         const hoursRemaining = (expiresMs - now) / (1000 * 60 * 60);
 
-        if (hoursRemaining < HARD_CAP_WARNING_HOURS && hoursRemaining > 0) {
+        if (hoursRemaining <= 0) {
+            // Hard cap already passed — treat as expired
+            if (!hasNotifiedExpiration) {
+                hasNotifiedExpiration = true;
+                return { action: 'expired', flags: { hasNotifiedExpiration, hasNotifiedHardCap } };
+            }
+            return { action: 'none', flags: { hasNotifiedExpiration, hasNotifiedHardCap } };
+        } else if (hoursRemaining < HARD_CAP_WARNING_HOURS) {
             if (!hasNotifiedHardCap) {
                 hasNotifiedHardCap = true;
                 return {

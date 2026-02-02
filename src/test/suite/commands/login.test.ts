@@ -207,4 +207,21 @@ suite('evaluateTokenExpiration', () => {
         assert.strictEqual(result.action, 'warn_hard_cap');
         assert.strictEqual(result.hoursRemaining, 1, 'Should show at least 1h, not 0h');
     });
+
+    test('returns expired when absolute cap is already past', () => {
+        const pastCap = new Date(baseInput.now - 3_600_000).toISOString(); // 1h ago
+        const result = evaluateTokenExpiration({ ...baseInput, absoluteExpiresAt: pastCap });
+        assert.strictEqual(result.action, 'expired');
+        assert.strictEqual(result.flags.hasNotifiedExpiration, true);
+    });
+
+    test('skips past-cap notification if already notified', () => {
+        const pastCap = new Date(baseInput.now - 3_600_000).toISOString();
+        const result = evaluateTokenExpiration({
+            ...baseInput,
+            absoluteExpiresAt: pastCap,
+            hasNotifiedExpiration: true,
+        });
+        assert.strictEqual(result.action, 'none');
+    });
 });
