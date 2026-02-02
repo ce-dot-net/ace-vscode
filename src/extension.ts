@@ -7,6 +7,7 @@ import { activateUI, StatusPanel } from './ui';
 import { AceSearchTool, AceLearnTool, AceStatusTool, AcePlaybookTool } from './tools';
 import { invalidateClient } from './services/aceClient';
 import { checkAgentFilesUpdate } from './commands/updateAgents';
+import { startAuthMonitor } from './services/authMonitor';
 
 /**
  * Extension activation
@@ -80,6 +81,13 @@ export function activate(context: vscode.ExtensionContext): void {
 
     // Show welcome/status message
     showActivationStatus();
+
+    try {
+        // Start token expiration monitoring (hard cap and refresh token only)
+        startAuthMonitor(context);
+    } catch (error) {
+        console.error('ACE: Failed to start auth monitor:', error);
+    }
 
     console.log('ACE extension activated successfully');
 }

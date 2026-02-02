@@ -1,0 +1,123 @@
+import * as vscode from 'vscode';
+import { login, type LoginOptions } from '@ace-sdk/core';
+import { invalidateClient } from '../services/aceClient';
+import { DEVICE_MANAGEMENT_URL, DEVICE_LIMITS_DOCS_URL } from '../constants';
+import { isDeviceLimitError, isValidVerificationUri } from '../utils/loginHelpers';
+import { resetAuthNotifications } from '../services/authMonitor';
+
+let loginInProgress = false;
+
+/**
+ * Present the device code to the user and offer to open the browser or copy.
+ */
+async function presentUserCode(
+    progress: vscode.Progress<{ message?: string }>,
+    userCode: string,
+    verificationUri: string,
+): Promise<void> {
+    progress.report({ message: 'Waiting for authorization...' });
+
+    if (!isValidVerificationUri(verificationUri)) {
+        throw new Error('Invalid verification URI received from server');
+    }
+
+    const action = await vscode.window.showInformationMessage(
+        `Your code: ${userCode}`,
+        { modal: true },
+        'Open Browser',
+        'Copy Code'
+    );
+
+    if (action === 'Open Browser') {
+        await vscode.env.openExternal(vscode.Uri.parse(verificationUri));
+    } else if (action === 'Copy Code') {
+        await vscode.env.clipboard.writeText(userCode);
+        await vscode.window.showInformationMessage('Code copied to clipboard!');
+    } else {
+        progress.report({ message: `Code: ${userCode} — Open browser to complete login` });
+    }
+}
+
+/**
+ * Show device limit error with options to manage devices or learn more.
+ */
+async function showDeviceLimitOptions(): Promise<void> {
+    const action = await vscode.window.showErrorMessage(
+        'Device limit reached. Revoke another device to continue.',
+        'Manage Devices',
+        'Learn More'
+    );
+
+    if (action === 'Manage Devices') {
+        await vscode.env.openExternal(vscode.Uri.parse(DEVICE_MANAGEMENT_URL));
+    } else if (action === 'Learn More') {
+        await vscode.env.openExternal(vscode.Uri.parse(DEVICE_LIMITS_DOCS_URL));
+    }
+}
+
+/**
+ * ACE Login Command - Device Code Authentication Flow
+ *
+ * Implements browser-based login instead of manual token entry.
+ * Uses SDK Core's device code flow (RFC 8628).
+ */
+export async function handleLogin(): Promise<void> {
+    if (loginInProgress) {
+        vscode.window.showInformationMessage('ACE Login is already in progress.');
+        return;
+    }
+
+    loginInProgress = true;
+    const abortController = new AbortController();
+
+    try {
+        await vscode.window.withProgress(
+            {
+                location: vscode.ProgressLocation.Notification,
+                title: 'ACE Login',
+                cancellable: true,
+            },
+            async (progress, token) => {
+                token.onCancellationRequested(() => {
+                    abortController.abort();
+                });
+
+                const loginOptions: LoginOptions = {
+                    clientType: 'vscode',
+                    signal: abortController.signal,
+
+                    onUserCode: (userCode, verificationUri) =>
+                        presentUserCode(progress, userCode, verificationUri),
+
+                    onProgress: (message) => {
+                        progress.report({ message });
+                    },
+                };
+
+                try {
+                    const user = await login(loginOptions);
+                    invalidateClient();
+                    resetAuthNotifications();
+                    vscode.window.showInformationMessage(`Logged in as ${user.email}`);
+                } catch (error: unknown) {
+                    if (isDeviceLimitError(error)) {
+                        await showDeviceLimitOptions();
+                        return;
+                    }
+
+                    if (error instanceof Error && error.name === 'AbortError') {
+                        vscode.window.showInformationMessage('Login cancelled');
+                        return;
+                    }
+
+                    throw error;
+                }
+            }
+        );
+    } catch (error: unknown) {
+        console.error('ACE Login failed:', error instanceof Error ? error.message : 'Unknown error');
+        vscode.window.showErrorMessage('ACE Login failed. See Developer Tools for details.');
+    } finally {
+        loginInProgress = false;
+    }
+}

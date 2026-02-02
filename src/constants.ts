@@ -8,6 +8,7 @@ export const PARTICIPANT_ID = `${EXTENSION_ID}.ace`;
 // Commands
 export const COMMANDS = {
     CONFIGURE: `${EXTENSION_ID}.configure`,
+    LOGIN: `${EXTENSION_ID}.login`,
     BOOTSTRAP: `${EXTENSION_ID}.bootstrap`,
     CLEAR: `${EXTENSION_ID}.clear`,
     CAPTURE_LEARN: `${EXTENSION_ID}.captureLearn`,
@@ -29,6 +30,14 @@ export const CHAT_COMMANDS = {
 
 // ACE Server configuration
 export const DEFAULT_SERVER_URL = 'https://ace-api.code-engine.app';
+
+// External URLs
+export const DEVICE_MANAGEMENT_URL = 'https://ace.code-engine.app/dashboard/devices';
+export const DEVICE_LIMITS_DOCS_URL = 'https://docs.code-engine.app/ace/device-limits';
+
+// Token expiration monitoring
+export const TOKEN_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+export const HARD_CAP_WARNING_HOURS = 24;
 
 // Agent files version - bump this ONLY when agent file CONTENT changes
 // This is separate from extension version - only triggers update popup when agent files have new content
