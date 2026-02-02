@@ -82,8 +82,12 @@ export function activate(context: vscode.ExtensionContext): void {
     // Show welcome/status message
     showActivationStatus();
 
-    // Start token expiration monitoring (hard cap and refresh token only)
-    startAuthMonitor(context);
+    try {
+        // Start token expiration monitoring (hard cap and refresh token only)
+        startAuthMonitor(context);
+    } catch (error) {
+        console.error('ACE: Failed to start auth monitor:', error);
+    }
 
     console.log('ACE extension activated successfully');
 }

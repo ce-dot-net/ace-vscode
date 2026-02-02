@@ -1,9 +1,11 @@
 import * as vscode from 'vscode';
 import { login, type LoginOptions } from '@ace-sdk/core';
 import { invalidateClient } from '../services/aceClient';
-import { COMMANDS, DEVICE_MANAGEMENT_URL, DEVICE_LIMITS_DOCS_URL } from '../constants';
+import { DEVICE_MANAGEMENT_URL, DEVICE_LIMITS_DOCS_URL } from '../constants';
 import { isDeviceLimitError, isValidVerificationUri } from '../utils/loginHelpers';
 import { resetAuthNotifications } from '../services/authMonitor';
+
+let loginInProgress = false;
 
 /**
  * ACE Login Command - Device Code Authentication Flow
@@ -12,6 +14,12 @@ import { resetAuthNotifications } from '../services/authMonitor';
  * Uses SDK Core's device code flow (RFC 8628).
  */
 export async function handleLogin(): Promise<void> {
+    if (loginInProgress) {
+        vscode.window.showInformationMessage('ACE Login is already in progress.');
+        return;
+    }
+
+    loginInProgress = true;
     const abortController = new AbortController();
 
     try {
@@ -58,10 +66,6 @@ export async function handleLogin(): Promise<void> {
                     onProgress: (message) => {
                         progress.report({ message });
                     },
-
-                    onSuccess: () => {
-                        // Note: success notification shown after invalidateClient() below
-                    },
                 };
 
                 try {
@@ -100,6 +104,8 @@ export async function handleLogin(): Promise<void> {
         );
     } catch (error: unknown) {
         console.error('ACE Login failed:', error);
-        vscode.window.showErrorMessage('ACE Login failed. Check the output panel for details.');
+        vscode.window.showErrorMessage('ACE Login failed. See Developer Tools for details.');
+    } finally {
+        loginInProgress = false;
     }
 }

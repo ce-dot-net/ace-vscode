@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { loadUserAuth } from '@ace-sdk/core';
-import { COMMANDS, TOKEN_CHECK_INTERVAL_MS, HARD_CAP_WARNING_HOURS } from '../constants';
+import { COMMANDS, TOKEN_CHECK_INTERVAL_MS } from '../constants';
+import { evaluateTokenExpiration } from '../utils/loginHelpers';
 
 let hasNotifiedExpiration = false;
 let hasNotifiedHardCap = false;
@@ -9,16 +10,22 @@ let hasNotifiedHardCap = false;
  * Start periodic token expiration monitoring.
  *
  * Only warns about:
- * 1. 7-day hard cap approaching (absolute_expires_at < 24h)
+ * 1. 7-day hard cap approaching (absolute_expires_at < HARD_CAP_WARNING_HOURS)
  * 2. Refresh token expired (refresh_expires_at in past)
  *
  * Does NOT warn about access token expiration — sliding window extends it on every use.
  * SDK's ensureValidToken() handles automatic refresh.
  */
 export function startAuthMonitor(context: vscode.ExtensionContext): void {
-    checkTokenExpiration();
+    // Defer initial check off the activation critical path
+    const initialTimeout = setTimeout(checkTokenExpiration, 0);
     const interval = setInterval(checkTokenExpiration, TOKEN_CHECK_INTERVAL_MS);
-    context.subscriptions.push({ dispose: () => clearInterval(interval) });
+    context.subscriptions.push({
+        dispose: () => {
+            clearTimeout(initialTimeout);
+            clearInterval(interval);
+        },
+    });
 }
 
 /**
@@ -33,58 +40,43 @@ function checkTokenExpiration(): void {
     try {
         const auth = loadUserAuth();
         if (!auth) {
-            // No auth = user hasn't logged in yet; reset flags
             hasNotifiedExpiration = false;
             hasNotifiedHardCap = false;
             return;
         }
 
-        const now = Date.now();
+        const result = evaluateTokenExpiration({
+            now: Date.now(),
+            refreshExpiresAt: auth.refresh_expires_at,
+            absoluteExpiresAt: auth.absolute_expires_at,
+            hasNotifiedExpiration,
+            hasNotifiedHardCap,
+        });
 
-        // Check if refresh token is expired (can't auto-recover from this)
-        if (auth.refresh_expires_at) {
-            const refreshExpiresAt = new Date(auth.refresh_expires_at).getTime();
-            if (refreshExpiresAt < now) {
-                if (!hasNotifiedExpiration) {
-                    hasNotifiedExpiration = true;
-                    vscode.window.showErrorMessage(
-                        'ACE session expired. Please login again.',
-                        'Login'
-                    ).then(action => {
-                        if (action === 'Login') {
-                            vscode.commands.executeCommand(COMMANDS.LOGIN);
-                        }
-                    });
+        // Update flags from pure function result
+        hasNotifiedExpiration = result.flags.hasNotifiedExpiration;
+        hasNotifiedHardCap = result.flags.hasNotifiedHardCap;
+
+        // Execute side effects based on action
+        if (result.action === 'expired') {
+            vscode.window.showErrorMessage(
+                'ACE session expired. Please login again.',
+                'Login'
+            ).then(action => {
+                if (action === 'Login') {
+                    vscode.commands.executeCommand(COMMANDS.LOGIN);
                 }
-                return;
-            }
-        }
-
-        // Check if absolute cap (7-day hard limit) is approaching
-        if (auth.absolute_expires_at) {
-            const absoluteExpiresAt = new Date(auth.absolute_expires_at).getTime();
-            const hoursRemaining = (absoluteExpiresAt - now) / (1000 * 60 * 60);
-
-            if (hoursRemaining < HARD_CAP_WARNING_HOURS && hoursRemaining > 0) {
-                if (!hasNotifiedHardCap) {
-                    hasNotifiedHardCap = true;
-                    vscode.window.showWarningMessage(
-                        `ACE 7-day session limit approaching (${Math.round(hoursRemaining)}h). Must re-login soon.`,
-                        'Login Now'
-                    ).then(action => {
-                        if (action === 'Login Now') {
-                            vscode.commands.executeCommand(COMMANDS.LOGIN);
-                        }
-                    });
+            });
+        } else if (result.action === 'warn_hard_cap') {
+            vscode.window.showWarningMessage(
+                `ACE 7-day session limit approaching (${result.hoursRemaining}h). Must re-login soon.`,
+                'Login Now'
+            ).then(action => {
+                if (action === 'Login Now') {
+                    vscode.commands.executeCommand(COMMANDS.LOGIN);
                 }
-            } else {
-                // Reset if no longer within warning window (e.g., after re-login)
-                hasNotifiedHardCap = false;
-            }
+            });
         }
-
-        // Refresh token is valid and hard cap is not near — reset expiration flag
-        hasNotifiedExpiration = false;
     } catch (error) {
         console.error('ACE: Failed to check token expiration:', error);
     }
