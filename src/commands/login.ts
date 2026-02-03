@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { login, logout, isAuthenticated, getTokenStatus, getCurrentUser, type CurrentUser } from '@ace-sdk/core';
+import { login, logout, isAuthenticated, getTokenStatus, getCurrentUser, ensureValidToken, type CurrentUser } from '@ace-sdk/core';
 import { invalidateClient } from '../services/aceClient';
 
 // Re-export SDK auth functions for use in other modules
@@ -115,6 +115,23 @@ export function getHardCapInfo(): {
         isApproaching: hoursRemaining < 48, // Warn if < 2 days
         isExpired: hoursRemaining <= 0
     };
+}
+
+/**
+ * Get valid token with auto-refresh (sliding window TTL)
+ * Uses ensureValidToken from SDK which handles refresh automatically
+ */
+export async function getValidToken(serverUrl: string): Promise<{ token: string; wasRefreshed: boolean } | null> {
+    try {
+        const result = await ensureValidToken(serverUrl);
+        if (result.wasRefreshed) {
+            console.log('[ACE] Token refreshed (sliding window extended)');
+        }
+        return result;
+    } catch (error) {
+        console.error('[ACE] Token refresh failed:', error instanceof Error ? error.message : String(error));
+        return null;
+    }
 }
 
 /**
