@@ -3,7 +3,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { saveProjectConfig, saveGlobalConfig } from '../services/config';
 import { DEFAULT_SERVER_URL } from '../constants';
-import { AceClient, type AceConfig } from '@ace-sdk/core';
+import { AceClient, type AceConfig, isAuthenticated, getCurrentUser, type CurrentUser } from '@ace-sdk/core';
+import { handleLogin, getHardCapInfo } from '../commands/login';
 
 /**
  * Escapes HTML special characters to prevent XSS
@@ -96,6 +97,12 @@ export class ConfigPanel {
                         break;
                     case 'fetchProjects':
                         await this._fetchProjectsFromServer(message.data);
+                        break;
+                    case 'login':
+                        await this._handleDeviceLogin();
+                        break;
+                    case 'getAuthStatus':
+                        this._sendAuthStatus();
                         break;
                 }
             },
@@ -209,6 +216,72 @@ export class ConfigPanel {
                 message: `Failed to fetch projects: ${error instanceof Error ? error.message : String(error)}`
             });
         }
+    }
+
+    /**
+     * Handle device code login flow
+     */
+    private async _handleDeviceLogin() {
+        try {
+            this._panel.webview.postMessage({
+                command: 'loginStatus',
+                status: 'in_progress',
+                message: 'Opening browser for login...'
+            });
+
+            const user = await handleLogin();
+
+            if (user) {
+                this._panel.webview.postMessage({
+                    command: 'loginResult',
+                    success: true,
+                    user: {
+                        email: user.email,
+                        organizations: user.organizations,
+                        default_org_id: user.default_org_id
+                    }
+                });
+                // Refresh the panel to show logged-in state
+                this._update();
+            } else {
+                this._panel.webview.postMessage({
+                    command: 'loginResult',
+                    success: false,
+                    message: 'Login cancelled or failed'
+                });
+            }
+        } catch (error) {
+            this._panel.webview.postMessage({
+                command: 'loginResult',
+                success: false,
+                message: error instanceof Error ? error.message : String(error)
+            });
+        }
+    }
+
+    /**
+     * Send current auth status to webview
+     */
+    private _sendAuthStatus() {
+        const authenticated = isAuthenticated();
+        const user = getCurrentUser();
+        const hardCap = getHardCapInfo();
+
+        this._panel.webview.postMessage({
+            command: 'authStatus',
+            authenticated,
+            user: user ? {
+                email: user.email,
+                organizations: user.organizations,
+                default_org_id: user.default_org_id
+            } : null,
+            hardCap: hardCap ? {
+                daysRemaining: hardCap.daysRemaining,
+                hoursRemaining: hardCap.hoursRemaining,
+                isApproaching: hardCap.isApproaching,
+                isExpired: hardCap.isExpired
+            } : null
+        });
     }
 
     /**
@@ -481,6 +554,22 @@ export class ConfigPanel {
         </p>
     </div>
 
+    <!-- Device Login Section -->
+    <div class="info-box" style="margin-bottom: 25px; border-left-color: var(--vscode-testing-iconPassed);">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h3 style="margin: 0;">🔐 Authentication</h3>
+                <p id="authStatusText" style="margin: 5px 0 0 0;">Checking authentication status...</p>
+            </div>
+            <button type="button" class="btn-primary" id="loginBtn" style="flex: 0 0 auto;">
+                Login with Browser
+            </button>
+        </div>
+        <div id="hardCapWarning" style="display: none; margin-top: 10px; padding: 8px; background: var(--vscode-inputValidation-warningBackground); border-radius: 4px; font-size: 12px;">
+            ⏳ Session expires soon. Re-login to extend.
+        </div>
+    </div>
+
     <form id="configForm">
         <div class="form-group">
             <label for="serverUrl">Server URL</label>
@@ -590,6 +679,17 @@ export class ConfigPanel {
                 vscode.postMessage({ command: 'updateAgents' });
                 showStatus('Updating agent files...', 'info');
             });
+
+            // Login with Browser button
+            document.getElementById('loginBtn').addEventListener('click', () => {
+                const loginBtn = document.getElementById('loginBtn');
+                loginBtn.textContent = 'Opening browser...';
+                loginBtn.disabled = true;
+                vscode.postMessage({ command: 'login' });
+            });
+
+            // Request auth status on load
+            vscode.postMessage({ command: 'getAuthStatus' });
 
             // Auto-connect if we have server URL and token
             const serverUrl = document.getElementById('serverUrl').value;
@@ -794,8 +894,64 @@ export class ConfigPanel {
                         showStatus('Failed to create agent files', 'error');
                     }
                     break;
+                case 'authStatus':
+                    updateAuthDisplay(message);
+                    break;
+                case 'loginResult':
+                    const loginBtn = document.getElementById('loginBtn');
+                    loginBtn.disabled = false;
+                    if (message.success) {
+                        loginBtn.textContent = '✓ Logged In';
+                        loginBtn.style.background = 'var(--vscode-testing-iconPassed)';
+                        document.getElementById('authStatusText').textContent = 'Logged in as ' + message.user.email;
+                        showStatus('Successfully logged in!', 'success');
+                        // Request fresh auth status to update UI
+                        vscode.postMessage({ command: 'getAuthStatus' });
+                    } else {
+                        loginBtn.textContent = 'Login with Browser';
+                        showStatus(message.message || 'Login failed', 'error');
+                    }
+                    break;
+                case 'loginStatus':
+                    if (message.status === 'in_progress') {
+                        document.getElementById('authStatusText').textContent = message.message;
+                    }
+                    break;
             }
         });
+
+        function updateAuthDisplay(auth) {
+            const authStatusText = document.getElementById('authStatusText');
+            const loginBtn = document.getElementById('loginBtn');
+            const hardCapWarning = document.getElementById('hardCapWarning');
+
+            if (auth.authenticated && auth.user) {
+                authStatusText.textContent = '✓ Logged in as ' + auth.user.email;
+                loginBtn.textContent = 'Re-login';
+                loginBtn.style.background = 'var(--vscode-button-secondaryBackground)';
+                loginBtn.style.color = 'var(--vscode-button-secondaryForeground)';
+
+                // Show hard cap warning if approaching
+                if (auth.hardCap) {
+                    if (auth.hardCap.isExpired) {
+                        hardCapWarning.textContent = '⚠️ Session expired (7-day limit). Please re-login.';
+                        hardCapWarning.style.background = 'var(--vscode-inputValidation-errorBackground)';
+                        hardCapWarning.style.display = 'block';
+                    } else if (auth.hardCap.isApproaching) {
+                        hardCapWarning.textContent = '⏳ Session expires in ' + auth.hardCap.hoursRemaining + ' hours. Re-login to extend.';
+                        hardCapWarning.style.display = 'block';
+                    } else {
+                        hardCapWarning.style.display = 'none';
+                    }
+                }
+            } else {
+                authStatusText.textContent = 'Not logged in. Click "Login with Browser" to authenticate.';
+                loginBtn.textContent = 'Login with Browser';
+                loginBtn.style.background = '';
+                loginBtn.style.color = '';
+                hardCapWarning.style.display = 'none';
+            }
+        }
     </script>
 </body>
 </html>`;

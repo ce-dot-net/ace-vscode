@@ -5,9 +5,11 @@ import { handleBootstrap } from './bootstrap';
 import { handleClear } from './clear';
 import { handleCaptureLearn } from './captureLearn';
 import { handleQuickActions } from './quickActions';
-import { handleUpdateAgents, checkAgentFilesUpdate } from './updateAgents';
+import { handleUpdateAgents } from './updateAgents';
+import { handleLogin, handleLogout } from './login';
 
 export { checkAgentFilesUpdate } from './updateAgents';
+export { checkAuthOnActivation } from './login';
 
 /**
  * Registers all extension commands
@@ -19,6 +21,8 @@ export function registerCommands(context: vscode.ExtensionContext): void {
         vscode.commands.registerCommand(COMMANDS.CLEAR, handleClear),
         vscode.commands.registerCommand(COMMANDS.CAPTURE_LEARN, handleCaptureLearn),
         vscode.commands.registerCommand(COMMANDS.QUICK_ACTIONS, handleQuickActions),
-        vscode.commands.registerCommand(COMMANDS.UPDATE_AGENTS, handleUpdateAgents)
+        vscode.commands.registerCommand(COMMANDS.UPDATE_AGENTS, handleUpdateAgents),
+        vscode.commands.registerCommand(COMMANDS.LOGIN, handleLogin),
+        vscode.commands.registerCommand(COMMANDS.LOGOUT, handleLogout)
     );
 }

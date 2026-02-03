@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { registerChatParticipant } from './chat/participant';
-import { registerCommands } from './commands';
+import { registerCommands, checkAuthOnActivation } from './commands';
 import { isGloballyConfigured, isProjectConfigured } from './services/config';
 import { activateAutomation } from './automation';
 import { activateUI, StatusPanel } from './ui';
@@ -76,6 +76,18 @@ export function activate(context: vscode.ExtensionContext): void {
         });
     } catch (error) {
         console.error('ACE: Failed to check agent files:', error);
+    }
+
+    // Check authentication status and show appropriate prompts
+    try {
+        console.log('ACE: Checking auth status...');
+        checkAuthOnActivation().then(() => {
+            console.log('ACE: Auth check complete');
+        }).catch(err => {
+            console.error('ACE: Auth check failed:', err);
+        });
+    } catch (error) {
+        console.error('ACE: Failed to check auth:', error);
     }
 
     // Show welcome/status message

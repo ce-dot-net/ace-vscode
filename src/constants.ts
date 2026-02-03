@@ -13,6 +13,8 @@ export const COMMANDS = {
     CAPTURE_LEARN: `${EXTENSION_ID}.captureLearn`,
     QUICK_ACTIONS: `${EXTENSION_ID}.showQuickActions`,
     UPDATE_AGENTS: `${EXTENSION_ID}.updateAgents`,
+    LOGIN: `${EXTENSION_ID}.login`,
+    LOGOUT: `${EXTENSION_ID}.logout`,
 } as const;
 
 // Chat participant commands

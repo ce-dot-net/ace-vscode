@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { getAceClient } from '../services/aceClient';
 import { isProjectConfigured, getProjectConfig } from '../services/config';
+import { isAuthenticated, getCurrentUser, getHardCapInfo } from '../commands/login';
 
 /**
  * Escapes HTML special characters to prevent XSS
@@ -69,6 +70,15 @@ export class StatusPanel {
                     case 'refresh':
                         await this._refresh();
                         break;
+                    case 'login':
+                        vscode.commands.executeCommand('ace-vscode.login').then(() => {
+                            this._sendAuthStatus();
+                            this._refresh();
+                        });
+                        break;
+                    case 'getAuthStatus':
+                        this._sendAuthStatus();
+                        break;
                     case 'executeCommand':
                         if (message.commandId) {
                             vscode.commands.executeCommand(message.commandId, ...(message.args || []))
@@ -94,6 +104,9 @@ export class StatusPanel {
     }
 
     private async _refresh() {
+        // Always send auth status
+        this._sendAuthStatus();
+
         if (!isProjectConfigured()) {
             this._panel.webview.postMessage({
                 command: 'notConfigured'
@@ -148,6 +161,29 @@ export class StatusPanel {
                 message: `Failed to load status: ${message}`
             });
         }
+    }
+
+    /**
+     * Sends auth status to the webview
+     */
+    private _sendAuthStatus(): void {
+        const authenticated = isAuthenticated();
+        const user = authenticated ? getCurrentUser() : null;
+        const hardCap = getHardCapInfo();
+
+        this._panel.webview.postMessage({
+            command: 'authStatus',
+            data: {
+                isAuthenticated: authenticated,
+                email: user?.email || null,
+                hardCap: hardCap ? {
+                    daysRemaining: hardCap.daysRemaining,
+                    hoursRemaining: hardCap.hoursRemaining,
+                    isApproaching: hardCap.isApproaching,
+                    isExpired: hardCap.isExpired
+                } : null
+            }
+        });
     }
 
     private _update() {
@@ -377,6 +413,31 @@ export class StatusPanel {
             font-size: 0.9em;
             margin-left: 4px;
         }
+        .session-warning {
+            background: var(--vscode-inputValidation-warningBackground);
+            border: 1px solid var(--vscode-inputValidation-warningBorder);
+            color: var(--vscode-inputValidation-warningForeground);
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .session-warning.error {
+            background: var(--vscode-inputValidation-errorBackground);
+            border-color: var(--vscode-inputValidation-errorBorder);
+            color: var(--vscode-inputValidation-errorForeground);
+        }
+        .session-warning .message {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .session-warning button {
+            flex-shrink: 0;
+        }
     </style>
 </head>
 <body>
@@ -407,6 +468,14 @@ export class StatusPanel {
     </div>
 
     <div id="error" class="error" style="display: none;"></div>
+
+    <div id="sessionWarning" class="session-warning" style="display: none;">
+        <div class="message">
+            <span id="sessionWarningIcon"></span>
+            <span id="sessionWarningText"></span>
+        </div>
+        <button id="sessionLoginBtn">Login</button>
+    </div>
 
     <div id="content" style="display: none;">
         <div class="stats-grid">
@@ -442,6 +511,9 @@ export class StatusPanel {
             switch (message.command) {
                 case 'statusLoaded':
                     showStatus(message.data);
+                    break;
+                case 'authStatus':
+                    showAuthStatus(message.data);
                     break;
                 case 'notConfigured':
                     document.getElementById('loading').style.display = 'none';
@@ -514,6 +586,42 @@ export class StatusPanel {
             }
         }
 
+        function showAuthStatus(data) {
+            const warning = document.getElementById('sessionWarning');
+            const icon = document.getElementById('sessionWarningIcon');
+            const text = document.getElementById('sessionWarningText');
+
+            if (!data.isAuthenticated) {
+                warning.className = 'session-warning error';
+                icon.textContent = '⚠️';
+                text.textContent = 'Not logged in. Login to enable ACE features.';
+                warning.style.display = 'flex';
+                return;
+            }
+
+            if (data.hardCap) {
+                if (data.hardCap.isExpired) {
+                    warning.className = 'session-warning error';
+                    icon.textContent = '🔒';
+                    text.textContent = 'Session expired (7-day limit). Please login again.';
+                    warning.style.display = 'flex';
+                } else if (data.hardCap.isApproaching) {
+                    warning.className = 'session-warning';
+                    icon.textContent = '⏰';
+                    if (data.hardCap.hoursRemaining < 24) {
+                        text.textContent = 'Session expires in ' + data.hardCap.hoursRemaining + ' hours. Re-login to extend.';
+                    } else {
+                        text.textContent = 'Session expires in ' + data.hardCap.daysRemaining + ' day(s). Re-login to extend.';
+                    }
+                    warning.style.display = 'flex';
+                } else {
+                    warning.style.display = 'none';
+                }
+            } else {
+                warning.style.display = 'none';
+            }
+        }
+
         function refresh() {
             document.getElementById('loading').style.display = 'block';
             document.getElementById('content').style.display = 'none';
@@ -523,6 +631,10 @@ export class StatusPanel {
 
         function configure() {
             vscode.postMessage({ command: 'executeCommand', commandId: 'ace-vscode.configure' });
+        }
+
+        function loginAction() {
+            vscode.postMessage({ command: 'login' });
         }
 
         // Attach event listeners
@@ -540,6 +652,11 @@ export class StatusPanel {
             const notConfiguredBtn = document.getElementById('notConfiguredBtn');
             if (notConfiguredBtn) {
                 notConfiguredBtn.addEventListener('click', configure);
+            }
+
+            const sessionLoginBtn = document.getElementById('sessionLoginBtn');
+            if (sessionLoginBtn) {
+                sessionLoginBtn.addEventListener('click', loginAction);
             }
         })();
     </script>

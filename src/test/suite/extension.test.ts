@@ -26,7 +26,7 @@ suite('ACE Extension Test Suite', () => {
         assert.strictEqual(pkg.version, '0.4.18', 'Version should be 0.4.18');
     });
 
-    test('Extension should declare all 7 commands in package.json', () => {
+    test('Extension should declare all 9 commands in package.json', () => {
         const ext = vscode.extensions.getExtension('ce-dot-net.ace-vscode');
         const commands = ext?.packageJSON?.contributes?.commands || [];
 
@@ -37,7 +37,9 @@ suite('ACE Extension Test Suite', () => {
             'ace-vscode.captureLearn',
             'ace-vscode.showQuickActions',
             'ace-vscode.updateAgents',
-            'ace-vscode.showStatus'
+            'ace-vscode.showStatus',
+            'ace-vscode.login',
+            'ace-vscode.logout'
         ];
 
         assert.strictEqual(commands.length, expectedCommands.length, `Should have ${expectedCommands.length} commands`);
