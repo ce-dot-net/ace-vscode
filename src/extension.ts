@@ -98,21 +98,14 @@ export function activate(context: vscode.ExtensionContext): void {
 
 /**
  * Shows activation status to user
+ * Note: Auth check is handled by checkAuthOnActivation(), this only handles project config
  */
 function showActivationStatus(): void {
     const globalConfigured = isGloballyConfigured();
     const projectConfigured = isProjectConfigured();
 
-    if (!globalConfigured) {
-        vscode.window.showInformationMessage(
-            'ACE: Global configuration not found. Run "ACE: Configure" to set up.',
-            'Configure'
-        ).then(result => {
-            if (result === 'Configure') {
-                vscode.commands.executeCommand('ace-vscode.configure');
-            }
-        });
-    } else if (!projectConfigured) {
+    // If authenticated but no project configured, prompt to configure
+    if (globalConfigured && !projectConfigured) {
         vscode.window.showInformationMessage(
             'ACE: Ready! Configure this project to start using pattern learning.',
             'Configure Project'
@@ -122,6 +115,7 @@ function showActivationStatus(): void {
             }
         });
     }
+    // Auth prompts are handled by checkAuthOnActivation()
 }
 
 /**

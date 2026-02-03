@@ -80,11 +80,11 @@ export async function handleQuickActions(): Promise<void> {
             }
         );
     } else {
-        // Not configured - show main configure option
+        // Not configured - show login option
         items.push({
-            label: '$(gear) Configure ACE',
-            description: 'Set up API token and project',
-            action: 'configure',
+            label: '$(sign-in) Login to ACE',
+            description: 'Sign in with browser to enable pattern learning',
+            action: 'login',
         });
     }
 
@@ -165,6 +165,9 @@ export async function handleQuickActions(): Promise<void> {
             break;
         case 'configure':
             vscode.commands.executeCommand('ace-vscode.configure');
+            break;
+        case 'login':
+            vscode.commands.executeCommand('ace-vscode.login');
             break;
         case 'settings':
             vscode.commands.executeCommand('workbench.action.openSettings', 'ace.automation');

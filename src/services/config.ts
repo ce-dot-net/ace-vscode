@@ -1,17 +1,18 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
+import { isAuthenticated as sdkIsAuthenticated } from '@ace-sdk/core';
 import { getGlobalConfigPath, DEFAULT_SERVER_URL } from '../constants';
 
 // Re-export for use in other modules
 export { getGlobalConfigPath, DEFAULT_SERVER_URL };
 
 export interface AceGlobalConfig {
-    apiToken?: string;
     serverUrl?: string;
     orgs?: Array<{
         id: string;
         name: string;
     }>;
+    // Note: apiToken removed - use device login via @ace-sdk/core
 }
 
 export interface AceProjectConfig {
@@ -41,11 +42,10 @@ export function readGlobalConfig(): AceGlobalConfig | null {
 }
 
 /**
- * Checks if ACE is configured globally (has API token)
+ * Checks if ACE is configured globally (authenticated via device login)
  */
 export function isGloballyConfigured(): boolean {
-    const config = readGlobalConfig();
-    return config !== null && !!config.apiToken;
+    return sdkIsAuthenticated();
 }
 
 /**
@@ -118,8 +118,9 @@ export function getConfiguredFolders(): vscode.WorkspaceFolder[] {
 
 /**
  * Saves the global ACE configuration to ~/.config/ace/config.json
+ * Note: Only saves serverUrl. Authentication is handled by device login via @ace-sdk/core.
  */
-export async function saveGlobalConfig(config: { serverUrl: string; apiToken: string; projectId: string }): Promise<void> {
+export async function saveGlobalConfig(config: { serverUrl: string }): Promise<void> {
     const configPath = getGlobalConfigPath();
     const configDir = configPath.substring(0, configPath.lastIndexOf('/'));
 
@@ -141,9 +142,7 @@ export async function saveGlobalConfig(config: { serverUrl: string; apiToken: st
     // Merge with new config
     const newConfig = {
         ...existingConfig,
-        serverUrl: config.serverUrl,
-        apiToken: config.apiToken,
-        projectId: config.projectId
+        serverUrl: config.serverUrl
     };
 
     fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2), 'utf-8');

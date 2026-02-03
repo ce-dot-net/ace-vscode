@@ -39,6 +39,9 @@ export async function handleLogin(): Promise<CurrentUser | null> {
                             vscode.window.showInformationMessage('Code copied to clipboard');
                         }
                     });
+
+                    // Auto-open browser (SDK may also try, but VS Code APIs work better)
+                    vscode.env.openExternal(vscode.Uri.parse(verificationUrl));
                 },
 
                 onProgress: (message: string) => {

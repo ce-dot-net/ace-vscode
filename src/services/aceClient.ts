@@ -1,25 +1,32 @@
 import * as vscode from 'vscode';
-import { AceClient, type AceConfig } from '@ace-sdk/core';
-import { readGlobalConfig, getProjectConfig } from './config';
+import { AceClient, type AceConfig, loadUserAuth, isAuthenticated } from '@ace-sdk/core';
+import { getProjectConfig } from './config';
 
 // Cache clients per folder (keyed by folder URI string)
 const clientCache = new Map<string, AceClient>();
 
-// Legacy singleton for backwards compatibility (single-folder workspaces)
-let defaultClient: AceClient | null = null;
+/**
+ * Gets the user token from device login.
+ * Returns null if not authenticated.
+ */
+function getUserToken(): string | null {
+    const userAuth = loadUserAuth();
+    return userAuth?.token ?? null;
+}
 
 /**
  * Gets or creates the ACE SDK client for a specific folder.
- * Uses configuration from global config (~/.config/ace/config.json) and folder/workspace settings.
+ * Uses token from device login plus folder/workspace settings.
  *
  * @param folder - Optional workspace folder. If not provided, uses workspace-level config.
  * @returns AceClient instance or null if not configured
  */
 export function getAceClient(folder?: vscode.WorkspaceFolder): AceClient | null {
-    const globalConfig = readGlobalConfig();
     const projectConfig = getProjectConfig(folder);
+    const token = getUserToken();
 
-    if (!globalConfig?.apiToken || !projectConfig) {
+    // Need both project config and a valid token from device login
+    if (!token || !projectConfig) {
         return null;
     }
 
@@ -35,7 +42,7 @@ export function getAceClient(folder?: vscode.WorkspaceFolder): AceClient | null 
     // Create AceConfig for the client
     const config: AceConfig = {
         serverUrl: projectConfig.serverUrl,
-        apiToken: globalConfig.apiToken,
+        apiToken: token,
         projectId: projectConfig.projectId,
         cacheTtlMinutes: 5
     };
@@ -44,11 +51,6 @@ export function getAceClient(folder?: vscode.WorkspaceFolder): AceClient | null 
 
     // Cache for future use
     clientCache.set(cacheKey, client);
-
-    // Also set as default client for backwards compatibility
-    if (!folder) {
-        defaultClient = client;
-    }
 
     return client;
 }
@@ -63,7 +65,6 @@ export function invalidateClient(folder?: vscode.WorkspaceFolder): void {
         clientCache.delete(folder.uri.toString());
     } else {
         clientCache.clear();
-        defaultClient = null;
     }
 }
 
@@ -72,7 +73,6 @@ export function invalidateClient(folder?: vscode.WorkspaceFolder): void {
  * @param folder - Optional folder to check. If not provided, checks workspace-level.
  */
 export function isClientConfigured(folder?: vscode.WorkspaceFolder): boolean {
-    const globalConfig = readGlobalConfig();
     const projectConfig = getProjectConfig(folder);
-    return !!(globalConfig?.apiToken && projectConfig);
+    return isAuthenticated() && !!projectConfig;
 }

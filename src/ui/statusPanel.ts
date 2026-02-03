@@ -5,7 +5,7 @@
  */
 
 import * as vscode from 'vscode';
-import { isProjectConfigured, getProjectConfig, readGlobalConfig } from '../services/config';
+import { isProjectConfigured, getProjectConfig } from '../services/config';
 import { isAuthenticated, getCurrentUser, getHardCapInfo, getValidToken } from '../commands/login';
 import { loadUserAuth, getDefaultOrgId } from '@ace-sdk/core';
 
@@ -130,7 +130,6 @@ export class StatusPanel {
      * Uses getValidToken for auto-refresh (sliding window TTL)
      */
     private async _fetchStatus(): Promise<StatusData> {
-        const globalConfig = readGlobalConfig();
         const projectConfig = getProjectConfig();
         const userAuth = loadUserAuth();
 
@@ -140,9 +139,9 @@ export class StatusPanel {
 
         const serverUrl = projectConfig.serverUrl;
 
-        // Get valid token with auto-refresh
+        // Get valid token with auto-refresh (device login only)
         const tokenResult = await getValidToken(serverUrl);
-        const token = tokenResult?.token || globalConfig?.apiToken || userAuth?.token;
+        const token = tokenResult?.token || userAuth?.token;
 
         if (!token) {
             throw new Error('No valid authentication token. Please login.');
