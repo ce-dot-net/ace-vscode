@@ -1,9 +1,11 @@
 import * as vscode from 'vscode';
+import type { LearningStreamEvent } from '@ace-sdk/core';
 import { formatMarkdown, formatSectionHeader, formatSuccess, formatError } from '../utils/formatters';
 import { getClientForChat, formatProjectContext } from '../utils/chatContext';
 
 /**
  * Handles the /learn command - capture patterns from the current session
+ * Uses streaming endpoint (/traces/stream) for real-time progress
  */
 export async function handleLearn(
     request: vscode.ChatRequest,
@@ -43,7 +45,17 @@ export async function handleLearn(
             timestamp: new Date().toISOString()
         };
 
-        const result = await client.storeExecutionTrace(trace);
+        // Use streaming endpoint for real-time progress
+        const result = await client.storeExecutionTraceStream(trace, {
+            onEvent: (event: LearningStreamEvent) => {
+                // Show progress to user
+                if (event.message) {
+                    formatMarkdown(stream, `⏳ ${event.message}\n`);
+                }
+            },
+            fallbackOnError: true, // Falls back to /traces if SSE fails
+            verbosity: 'compact'
+        });
 
         formatSuccess(stream, 'Learning captured!\n\n');
 

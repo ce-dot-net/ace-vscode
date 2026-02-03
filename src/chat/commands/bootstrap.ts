@@ -1,11 +1,14 @@
 import * as vscode from 'vscode';
+import { bootstrapWithStreaming, loadUserAuth, type BootstrapSSEEvent } from '@ace-sdk/core';
 import { formatMarkdown, formatError, formatSectionHeader } from '../utils/formatters';
 import { getClientForChat, formatProjectContext } from '../utils/chatContext';
+import { getProjectConfig } from '../../services/config';
 import * as fs from 'fs';
 import * as path from 'path';
 
 /**
  * Handles the /bootstrap command - initialize playbook from codebase
+ * Uses streaming endpoint (/bootstrap/stream) for real-time progress
  */
 export async function handleBootstrap(
     request: vscode.ChatRequest,
@@ -19,16 +22,25 @@ export async function handleBootstrap(
         return { metadata: { command: 'bootstrap' } };
     }
 
-    const { client, folder } = clientInfo;
+    const { folder } = clientInfo;
 
-    // Parse optional mode from prompt
-    const mode = request.prompt.trim() || 'hybrid';
+    // Get config for streaming API
+    const projectConfig = getProjectConfig(folder);
+    const userAuth = loadUserAuth();
+
+    if (!projectConfig || !userAuth?.token) {
+        formatError(stream, 'ACE not configured. Please login first.\n');
+        return { metadata: { command: 'bootstrap' } };
+    }
+
+    // Parse optional mode from prompt (valid: hybrid, both, local-files, git-history, docs-only)
+    const modeInput = request.prompt.trim() || 'hybrid';
+    const mode = modeInput as 'hybrid' | 'both' | 'local-files' | 'git-history' | 'docs-only';
 
     formatSectionHeader(stream, 'Bootstrap Playbook');
     formatProjectContext(stream, folder);
     formatMarkdown(stream, `🚀 Initializing playbook from codebase analysis...\n\n`);
     formatMarkdown(stream, `*Mode: **${mode}***\n\n`);
-    formatMarkdown(stream, `*This may take 10-30 seconds...*\n\n`);
 
     try {
         // Get workspace path from folder context
@@ -57,31 +69,52 @@ export async function handleBootstrap(
             }
         }
 
-        const result = await client.bootstrap({
+        // Use streaming endpoint for real-time progress
+        const result = await bootstrapWithStreaming({
+            serverUrl: projectConfig.serverUrl,
+            orgId: projectConfig.orgId,
+            projectId: projectConfig.projectId,
+            apiToken: userAuth.token,
             mode,
-            code_blocks: codeBlocks,
+            codeBlocks,
             metadata: {
                 files_scanned: filesScanned,
                 blocks_extracted: codeBlocks.length,
                 thoroughness: 'medium'
-            }
+            },
+            onEvent: (event: BootstrapSSEEvent) => {
+                // Show progress to user
+                if (event.message) {
+                    formatMarkdown(stream, `⏳ ${event.message}\n`);
+                }
+            },
+            verbosity: 'compact',
+            timeout: 120000 // 2 minutes
         });
 
-        const patternsAdded = result.patterns_extracted ?? 0;
+        if (result.success && result.statistics) {
+            const patternsAdded = result.statistics.patterns_extracted ?? 0;
 
-        formatMarkdown(stream, `## ✅ Bootstrap Complete\n\n`);
-        formatMarkdown(stream, `**Patterns Added**: ${patternsAdded}\n\n`);
+            formatMarkdown(stream, `## ✅ Bootstrap Complete\n\n`);
+            formatMarkdown(stream, `**Patterns Added**: ${patternsAdded}\n\n`);
 
-        if (result.by_section) {
-            formatMarkdown(stream, `### By Section\n`);
-            for (const [section, count] of Object.entries(result.by_section)) {
-                formatMarkdown(stream, `- **${section.replace(/_/g, ' ')}**: ${count}\n`);
+            if (result.statistics.by_section) {
+                formatMarkdown(stream, `### By Section\n`);
+                for (const [section, count] of Object.entries(result.statistics.by_section)) {
+                    formatMarkdown(stream, `- **${section.replace(/_/g, ' ')}**: ${count}\n`);
+                }
+                formatMarkdown(stream, '\n');
             }
-            formatMarkdown(stream, '\n');
-        }
 
-        if (result.compression_percentage) {
-            formatMarkdown(stream, `*Compression: ${result.compression_percentage}%*\n`);
+            if (result.statistics.compression_percentage) {
+                formatMarkdown(stream, `*Compression: ${result.statistics.compression_percentage}%*\n`);
+            }
+
+            if (result.processingTime) {
+                formatMarkdown(stream, `*Processing time: ${result.processingTime.toFixed(1)}s*\n`);
+            }
+        } else if (result.error) {
+            formatError(stream, `Bootstrap failed: ${result.error.message}\n`);
         }
 
         formatMarkdown(stream, `\nUse \`/patterns\` to view your playbook, or \`/top\` for best patterns.\n`);

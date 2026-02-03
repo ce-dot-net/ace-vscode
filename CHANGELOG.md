@@ -5,6 +5,33 @@ All notable changes to ACE for VSCode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.23] - 2026-02-03
+
+### Added
+- **SSE Streaming for Learn and Bootstrap**: Real-time progress updates via Server-Sent Events
+  - `/learn` now uses `/traces/stream` endpoint with live progress messages
+  - `/bootstrap` now uses `/bootstrap/stream` endpoint with live progress messages
+  - Automatic fallback to non-streaming endpoints if SSE fails
+- **Config fallback to global config**: `getProjectConfig()` now reads from `~/.config/ace/config.json` as fallback
+  - Supports `projectId` from global config
+  - Supports `orgId` from multiple locations: `default_org_id`, `auth.default_org_id`, `auth.organizations[0].org_id`
+
+### Changed
+- **Device login only**: Removed legacy org token (`apiToken`) support entirely
+  - Authentication now requires device login via browser
+  - `aceClient.ts` uses `loadUserAuth()` from SDK exclusively
+  - `config.ts` `isGloballyConfigured()` uses `isAuthenticated()` from SDK
+- **Auto-open browser on login**: Browser opens automatically when device code is received
+- **Quick actions**: Shows "Login to ACE" instead of "Configure" when not authenticated
+- Updated `@ace-sdk/core` to support streaming APIs
+
+### Fixed
+- **Status bar badge showing "?"**: Was using legacy token path, now properly uses device login token
+- **Config not found**: Now falls back to global config file for projectId/orgId
+
+### Breaking Changes
+- Legacy `apiToken` configuration no longer works - must use device login
+
 ## [0.4.18] - 2025-12-23
 
 ### Added

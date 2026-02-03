@@ -8,10 +8,18 @@ export { getGlobalConfigPath, DEFAULT_SERVER_URL };
 
 export interface AceGlobalConfig {
     serverUrl?: string;
-    orgs?: Array<{
-        id: string;
-        name: string;
-    }>;
+    projectId?: string;
+    default_org_id?: string;
+    orgs?: Record<string, { name: string }>;
+    auth?: {
+        token?: string;
+        default_org_id?: string;
+        organizations?: Array<{
+            org_id: string;
+            name: string;
+            role: string;
+        }>;
+    };
     // Note: apiToken removed - use device login via @ace-sdk/core
 }
 
@@ -49,16 +57,36 @@ export function isGloballyConfigured(): boolean {
 }
 
 /**
- * Gets the project-specific ACE configuration from workspace settings.
+ * Gets the project-specific ACE configuration.
+ * Priority: VS Code workspace settings > global config file
  * For multi-root workspaces, pass the folder to get folder-specific config.
  * @param folder - Optional workspace folder. If not provided, uses workspace-level config.
  */
 export function getProjectConfig(folder?: vscode.WorkspaceFolder): AceProjectConfig | null {
-    // Pass folder URI to get folder-specific settings in multi-root workspaces
+    // 1. Try VS Code workspace settings first
     const config = vscode.workspace.getConfiguration('ace', folder?.uri);
-    const projectId = config.get<string>('projectId');
-    const orgId = config.get<string>('orgId');
+    let projectId = config.get<string>('projectId');
+    let orgId = config.get<string>('orgId');
     const serverUrl = config.get<string>('serverUrl') || DEFAULT_SERVER_URL;
+
+    // 2. Fall back to global config file if workspace settings don't have values
+    if (!projectId || !orgId) {
+        const globalConfig = readGlobalConfig();
+        if (globalConfig) {
+            // Project ID fallback
+            if (!projectId) {
+                projectId = globalConfig.projectId;
+            }
+
+            // Org ID fallback - check multiple locations (like ace-cursor)
+            if (!orgId) {
+                orgId = globalConfig.default_org_id
+                    || globalConfig.auth?.default_org_id
+                    || globalConfig.auth?.organizations?.[0]?.org_id
+                    || (globalConfig.orgs ? Object.keys(globalConfig.orgs)[0] : undefined);
+            }
+        }
+    }
 
     if (!projectId || !orgId) {
         return null;

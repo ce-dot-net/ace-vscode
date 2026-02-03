@@ -34,8 +34,8 @@ export const DEFAULT_SERVER_URL = 'https://ace-api.code-engine.app';
 
 // Agent files version - bump this ONLY when agent file CONTENT changes
 // This is separate from extension version - only triggers update popup when agent files have new content
-// Current: 0.4.22 (device login only, removed legacy org tokens, fixed status bar badge)
-export const AGENT_FILES_VERSION = '0.4.22';
+// Current: 0.4.23 (fixed config fallback to global config for projectId/orgId)
+export const AGENT_FILES_VERSION = '0.4.23';
 
 // Global config path (XDG standard, same as @ace-sdk/core)
 export const getGlobalConfigPath = (): string => {

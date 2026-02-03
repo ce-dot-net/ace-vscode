@@ -102,6 +102,13 @@ ACE creates a self-improving learning cycle where each session benefits from pre
 | ⬇️ | | |
 | 🔄 | **Next Session** | Enhanced patterns available → Back to Start! |
 
+### SSE Streaming (v0.4.23+)
+
+Learn and Bootstrap operations now use Server-Sent Events (SSE) for real-time progress:
+- **`/learn`** → Uses `/traces/stream` endpoint with live progress messages
+- **`/bootstrap`** → Uses `/bootstrap/stream` endpoint with live progress messages
+- Automatic fallback to non-streaming endpoints if SSE is not supported
+
 ## Playbook Sections
 
 1. **strategies_and_hard_rules** - Architectural patterns, coding principles

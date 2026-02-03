@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { getAceClient } from '../services/aceClient';
+import type { LearningStreamEvent } from '@ace-sdk/core';
 
 interface AceLearnInput {
     task: string;
@@ -9,6 +10,7 @@ interface AceLearnInput {
 
 /**
  * ACE Learn Tool - Captures patterns from completed work
+ * Uses streaming endpoint (/traces/stream) for real-time progress
  * Returns verbose formatted output with learning statistics
  */
 export class AceLearnTool implements vscode.LanguageModelTool<AceLearnInput> {
@@ -34,7 +36,14 @@ export class AceLearnTool implements vscode.LanguageModelTool<AceLearnInput> {
                 timestamp: new Date().toISOString()
             };
 
-            const result = await client.storeExecutionTrace(trace);
+            // Use streaming endpoint for real-time progress
+            const result = await client.storeExecutionTraceStream(trace, {
+                onEvent: (event: LearningStreamEvent) => {
+                    console.log(`[ACE Learn] ${event.stage}: ${event.message || ''}`);
+                },
+                fallbackOnError: true, // Falls back to /traces if SSE fails
+                verbosity: 'compact'
+            });
 
             // Format verbose output matching CLI plugin style
             let output = `✅ **[ACE] Learning captured!**\n\n`;
