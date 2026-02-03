@@ -1,35 +1,51 @@
 # ACE for VS Code
 
-> 🔐 **CLOSED BETA** - This extension requires an ACE account to work.
+> 🔐 **Account Required** - This extension requires an ACE account to work.
 >
-> **[→ Join the Waitlist](https://ace.code-engine.app/waitlist)** to get your API token and start using ACE.
+> **[→ Sign up for ACE](https://ace-ai.app)** to create your account and start using ACE.
 >
 > Without an account, the extension cannot connect to the ACE server.
 
 **Automatic Context Engine** - Pattern learning for GitHub Copilot that captures what works and retrieves it when needed.
 
-By [Code Engine GmbH](https://ace.code-engine.app)
+By [Code Engine GmbH](https://ace-ai.app)
 
 ## Features
 
 - 🤖 **@ace Chat Participant** - Ask Copilot to search patterns, capture learning, and more
 - 🔧 **Language Model Tools** - `ace_search`, `ace_learn`, `ace_status`, `ace_get_playbook`
+- 🔐 **Browser-based login** - Secure device code authentication (no API tokens to copy)
 - 📁 **Multi-Root Workspace Support** - Each folder gets its own ACE configuration
-- 📊 **Status Panel** - Real-time playbook statistics
-- ⚙️ **Configure Panel** - Easy server and project setup
+- 📊 **Status Panel** - Real-time playbook statistics with session expiry info
+- ⚙️ **Configure Panel** - Easy server and project setup with login support
 - 🤖 **Agent Files** - Generate `.github/agents/` for CI/CD AI assistants
 
 ## Quick Start
 
 > **Step 1 is required** - The extension won't work without an ACE account!
 
-1. **[Sign up for ACE](https://ace.code-engine.app/waitlist)** - Get your API token (required!)
+1. **[Sign up for ACE](https://ace-ai.app)** - Create your account (required!)
 2. **Install** from VS Code Extensions marketplace
 3. **Open Command Palette** (`Cmd+Shift+P` on Mac, `Ctrl+Shift+P` on Windows/Linux)
 4. **Run** `ACE: Configure` - opens setup panel
-5. **Enter your credentials** and select your project
-6. **Run** `ACE: Update Agent Files` - generates `.github/agents/` for CI/CD AI assistants
-7. **Start using @ace** in GitHub Copilot Chat!
+5. **Click "Login with Browser"** - authenticates via your browser
+6. **Select your organization and project**
+7. **Run** `ACE: Update Agent Files` - generates `.github/agents/` for CI/CD AI assistants
+8. **Start using @ace** in GitHub Copilot Chat!
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| **ACE: Login** | Login via browser-based device code authentication |
+| **ACE: Logout** | Logout and clear authentication tokens |
+| **ACE: Configure** | Opens webview panel to login, select organization/project |
+| **ACE: Show Playbook Status** | Opens webview panel showing playbook statistics |
+| **ACE: Bootstrap Playbook** | Initialize patterns from existing codebase (git history, docs) |
+| **ACE: Capture Learning** | Manually trigger learning capture |
+| **ACE: Clear Playbook** | Clear all learned patterns |
+| **ACE: Update Agent Files** | Generate/update `.github/agents/` files |
+| **ACE: Quick Actions** | Quick access to common ACE actions |
 
 ## Using ACE with Copilot
 
@@ -48,10 +64,6 @@ When `ace-expert` is selected, Copilot can automatically call `ace_search` befor
 
 Alternatively, use `@ace` commands directly in any Copilot chat:
 
-## @ace Chat Participant
-
-Use the `@ace` chat participant in GitHub Copilot Chat:
-
 | Command | Description |
 |---------|-------------|
 | `@ace /search <query>` | Search for relevant patterns in the playbook |
@@ -59,6 +71,7 @@ Use the `@ace` chat participant in GitHub Copilot Chat:
 | `@ace /status` | Show playbook statistics |
 | `@ace /learn` | Capture patterns from the current session |
 | `@ace /top` | Show highest-rated patterns |
+| `@ace /domains` | List available pattern domains |
 | `@ace /bootstrap` | Initialize playbook from codebase |
 | `@ace /clear --confirm` | Clear all patterns |
 
@@ -72,18 +85,6 @@ ACE provides 4 tools that GitHub Copilot can use automatically:
 | `ace_learn` | Capture patterns and lessons learned from work |
 | `ace_status` | Show playbook statistics |
 | `ace_get_playbook` | Retrieve patterns filtered by section or quality |
-
-## Commands
-
-| Command | Description |
-|---------|-------------|
-| **ACE: Configure** | Opens webview panel to configure server URL, API token, and select project |
-| **ACE: Show Playbook Status** | Opens webview panel showing playbook statistics |
-| **ACE: Bootstrap Playbook** | Initialize patterns from existing codebase (git history, docs) |
-| **ACE: Capture Learning** | Manually trigger learning capture |
-| **ACE: Clear Playbook** | Clear all learned patterns |
-| **ACE: Update Agent Files** | Generate/update `.github/agents/` files |
-| **ACE: Quick Actions** | Quick access to common ACE actions |
 
 ## How It Works
 
@@ -117,23 +118,6 @@ In multi-root workspaces, each folder can have its own ACE configuration:
 - Folder picker appears when multiple folders are open
 - All chat commands are folder-aware
 
-## Configuration
-
-### Workspace Settings
-
-Configure in VS Code Settings (`Cmd+,`) or `.vscode/settings.json`:
-
-| Setting | Description | Default |
-|---------|-------------|---------|
-| `ace.projectId` | ACE Project ID (format: prj_xxxxx) | `""` |
-| `ace.orgId` | ACE Organization ID (format: org_xxxxx) | `""` |
-| `ace.serverUrl` | ACE API Server URL | `https://ace-api.code-engine.app` |
-| `ace.automation.level` | Automation level: manual, smart, aggressive | `smart` |
-| `ace.automation.minEditsBeforeSuggest` | Minimum edits before suggesting learning | `10` |
-| `ace.automation.idleMinutesBeforeSuggest` | Idle minutes before suggesting learning | `3` |
-| `ace.automation.showStatusBar` | Show ACE status in status bar | `true` |
-| `ace.automation.gitAutoCapture` | Auto-suggest learning on commits | `false` |
-
 ## Agent Files (v0.4.16+)
 
 ACE generates GitHub Copilot agent files for automatic pattern learning. Run `ACE: Update Agent Files` to create:
@@ -147,7 +131,7 @@ ACE generates GitHub Copilot agent files for automatic pattern learning. Run `AC
 └── .ace-version.json  # Version tracking
 ```
 
-### Agent Skills (NEW in v0.4.16)
+### Agent Skills
 
 **Agent Skills** are auto-triggered by Copilot based on your prompt. When you type keywords like "implement", "build", "fix", or "debug", Copilot automatically loads ACE patterns before starting work.
 
@@ -155,17 +139,30 @@ ACE generates GitHub Copilot agent files for automatic pattern learning. Run `AC
 
 For **guaranteed** pattern retrieval, select **ace-expert** as your agent in Copilot Chat. This ensures ACE tools are always available.
 
+## Configuration
+
+### Workspace Settings
+
+Configure in VS Code Settings (`Cmd+,`) or `.vscode/settings.json`:
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| `ace.projectId` | ACE Project ID (format: prj_xxxxx) | `""` |
+| `ace.orgId` | ACE Organization ID (format: org_xxxxx) | `""` |
+| `ace.serverUrl` | ACE API Server URL | `https://ace-api.code-engine.app` |
+| `ace.automation.level` | Automation level: manual, smart, aggressive | `smart` |
+| `ace.automation.showStatusBar` | Show ACE status in status bar | `true` |
+
 ## Requirements
 
 - VS Code (v1.102.0+)
 - GitHub Copilot Chat extension
-- ACE account at [ace.code-engine.app](https://ace.code-engine.app)
-- API token from the ACE dashboard
+- ACE account at [ace-ai.app](https://ace-ai.app)
 
 ## Links
 
-- [ACE Website](https://ace.code-engine.app)
-- [Documentation](https://ace.code-engine.app/docs)
+- [ACE Website](https://ace-ai.app)
+- [Documentation](https://ace-ai.app/docs)
 - [GitHub](https://github.com/ce-dot-net/ace-vscode)
 - [Report Issues](https://github.com/ce-dot-net/ace-vscode/issues)
 

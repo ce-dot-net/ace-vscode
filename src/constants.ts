@@ -34,8 +34,8 @@ export const DEFAULT_SERVER_URL = 'https://ace-api.code-engine.app';
 
 // Agent files version - bump this ONLY when agent file CONTENT changes
 // This is separate from extension version - only triggers update popup when agent files have new content
-// Current: 0.4.18 (domain-aware search with /domains command and filtering)
-export const AGENT_FILES_VERSION = '0.4.18';
+// Current: 0.4.19 (device code login with browser-based auth)
+export const AGENT_FILES_VERSION = '0.4.19';
 
 // Global config path (XDG standard, same as @ace-sdk/core)
 export const getGlobalConfigPath = (): string => {
