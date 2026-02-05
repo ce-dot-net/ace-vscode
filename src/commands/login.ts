@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { login, logout, isAuthenticated, getTokenStatus, getCurrentUser, ensureValidToken, type CurrentUser } from '@ace-sdk/core';
+import { login, logout, isAuthenticated, getTokenStatus, getCurrentUser, ensureValidToken, refreshOrganizations, type CurrentUser } from '@ace-sdk/core';
 import { invalidateClient } from '../services/aceClient';
 
 // Re-export SDK auth functions for use in other modules
@@ -54,6 +54,19 @@ export async function handleLogin(): Promise<CurrentUser | null> {
                     );
                 }
             });
+
+            // Refresh organizations from server after login
+            // (login response may return empty orgs for new users before Clerk sync)
+            if (currentUser) {
+                try {
+                    const refreshedOrgs = await refreshOrganizations();
+                    if (refreshedOrgs && refreshedOrgs.length > 0) {
+                        currentUser.organizations = refreshedOrgs;
+                    }
+                } catch (err) {
+                    console.warn('[ACE] Failed to refresh organizations, using login response:', err);
+                }
+            }
 
             // Invalidate client cache to pick up new auth
             invalidateClient();

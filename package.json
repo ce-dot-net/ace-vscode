@@ -2,7 +2,7 @@
   "name": "ace-vscode",
   "displayName": "ACE for GitHub Copilot",
   "description": "Pattern learning and retrieval for GitHub Copilot - captures what works, retrieves it when needed",
-  "version": "0.4.23",
+  "version": "0.4.24",
   "publisher": "ce-dot-net",
   "license": "MIT",
   "repository": {
@@ -274,7 +274,7 @@
     "test": "vscode-test"
   },
   "dependencies": {
-    "@ace-sdk/core": "^2.9.1"
+    "@ace-sdk/core": "^2.9.3"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
