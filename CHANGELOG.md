@@ -5,6 +5,47 @@ All notable changes to ACE for VSCode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.25] - 2026-02-05
+
+### Added
+- **Chat participant disambiguation**: Auto-routes to `@ace` without explicit mention
+  - Categories: `pattern_search`, `pattern_learning`, `troubleshooting`
+  - Examples help Copilot identify ACE-related queries
+  - Requires VS Code ^1.105.0 (October 2025)
+- **Quota/usage callbacks from @ace-sdk/core**:
+  - `onUsageUpdate`: Tracks usage for status bar tooltip
+  - `onQuotaWarning`: Shows notification when >80% quota used
+  - `onReadOnlyMode`: Warns when quota exceeded with upgrade link
+  - `onAccountBlocked`: Shows error with account management link
+- **New configuration options**:
+  - `ace.features.showQuotaWarnings`: Enable/disable quota warning notifications (default: true)
+  - `ace.features.showUsageInStatusBar`: Show usage % in status bar tooltip (default: false)
+
+### Changed
+- **Minimum VS Code version**: Bumped from ^1.102.0 to ^1.105.0 for disambiguation support
+- **Tool descriptions optimized for auto-invocation**:
+  - `ace_search`: Now says "MANDATORY" and "ALWAYS call this first"
+  - `ace_learn`: Now says "MANDATORY" and "ALWAYS call this AFTER"
+- **Agent frontmatter updated** (VS Code 1.109):
+  - Added `user-invokable: true` to ace-expert agent
+
+### Research
+- Investigated VS Code 1.109 features (see PLAN-DomainMonitor-chatContextProvider-Research.md)
+- `chatContextProvider` API still PROPOSED - not yet available
+- Agent Skills (SKILL.md) is GA and working well
+- Org-level skills "coming soon" from GitHub
+
+## [0.4.24] - 2026-02-05
+
+### Fixed
+- **Organizations not showing after login**: Call `refreshOrganizations()` after device login to sync orgs from server
+  - Login response may return empty organizations array for new users before Clerk sync
+  - Now explicitly refreshes via `/api/v1/auth/me` endpoint after successful login
+  - Matches ace-cursor fix (commit 42c257d)
+
+### Changed
+- Updated `@ace-sdk/core` to `^2.9.3`
+
 ## [0.4.23] - 2026-02-03
 
 ### Added

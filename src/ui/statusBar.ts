@@ -9,7 +9,8 @@ export type StatusBarState = 'ready' | 'searching' | 'learning' | 'error' | 'unc
  */
 export class AceStatusBar implements vscode.Disposable {
     private statusBarItem: vscode.StatusBarItem;
-    private patternCount: number | undefined;
+    private patternCount: number = 0;
+    private isLoadingPatterns: boolean = true;
     private currentState: StatusBarState = 'ready';
     private currentFolder: vscode.WorkspaceFolder | undefined;
 
@@ -43,8 +44,10 @@ export class AceStatusBar implements vscode.Disposable {
             this.updateState('unconfigured');
         } else {
             this.updateState('ready');
-            // Fetch pattern count from server
-            this._fetchPatternCount(this.currentFolder);
+            // Fetch pattern count from server in background
+            this._fetchPatternCount(this.currentFolder).catch(err => {
+                console.error('ACE: Unhandled error fetching pattern count:', err);
+            });
         }
 
         this.statusBarItem.show();
@@ -76,8 +79,13 @@ export class AceStatusBar implements vscode.Disposable {
 
         switch (state) {
             case 'ready':
-                this.statusBarItem.text = `$(book) ACE: ${this.patternCount ?? '?'} patterns`;
-                this.statusBarItem.tooltip = 'Click to view ACE playbook status';
+                if (this.isLoadingPatterns) {
+                    this.statusBarItem.text = '$(loading~spin) ACE: Loading...';
+                    this.statusBarItem.tooltip = 'Loading ACE playbook statistics...';
+                } else {
+                    this.statusBarItem.text = `$(book) ACE: ${this.patternCount} patterns`;
+                    this.statusBarItem.tooltip = 'Click to view ACE playbook status';
+                }
                 this.statusBarItem.backgroundColor = undefined;
                 this.statusBarItem.command = 'ace-vscode.showStatus';
                 break;
@@ -117,6 +125,7 @@ export class AceStatusBar implements vscode.Disposable {
      */
     setPatternCount(count: number): void {
         this.patternCount = count;
+        this.isLoadingPatterns = false;
         if (this.currentState === 'ready') {
             this.updateState('ready', count);
         }
@@ -165,14 +174,17 @@ export class AceStatusBar implements vscode.Disposable {
         try {
             const client = getAceClient(folder);
             if (!client) {
+                console.warn('ACE: Client not available for pattern count fetch. Check authentication and configuration.');
+                this.markLoadingComplete();
                 return;
             }
             const status = await client.getStatus();
             const count = status.total_patterns ?? status.total_bullets ?? 0;
             this.setPatternCount(count);
+            console.log(`ACE: Pattern count updated: ${count}`);
         } catch (error) {
             console.error('ACE: Failed to fetch pattern count:', error);
-            // Keep showing ? if fetch fails
+            this.markLoadingComplete();
         }
     }
 
@@ -182,6 +194,16 @@ export class AceStatusBar implements vscode.Disposable {
     async refresh(): Promise<void> {
         if (isProjectConfigured(this.currentFolder)) {
             await this._fetchPatternCount(this.currentFolder);
+        }
+    }
+
+    /**
+     * Marks pattern loading as complete (used when fetch fails)
+     */
+    private markLoadingComplete(): void {
+        this.isLoadingPatterns = false;
+        if (this.currentState === 'ready') {
+            this.updateState('ready');
         }
     }
 

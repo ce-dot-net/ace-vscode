@@ -2,7 +2,7 @@
   "name": "ace-vscode",
   "displayName": "ACE for GitHub Copilot",
   "description": "Pattern learning and retrieval for GitHub Copilot - captures what works, retrieves it when needed",
-  "version": "0.4.24",
+  "version": "0.4.25",
   "publisher": "ce-dot-net",
   "license": "MIT",
   "repository": {
@@ -11,7 +11,7 @@
   },
   "icon": "resources/ace-icon.png",
   "engines": {
-    "vscode": "^1.102.0"
+    "vscode": "^1.105.0"
   },
   "categories": [
     "Machine Learning",
@@ -39,6 +39,37 @@
         "fullName": "ACE Pattern Learning",
         "description": "Semantic pattern search and learning for your codebase",
         "isSticky": false,
+        "disambiguation": [
+          {
+            "category": "pattern_search",
+            "description": "Questions about coding patterns, best practices, implementation approaches, or how to build something",
+            "examples": [
+              "How should I implement authentication?",
+              "What's the best pattern for error handling?",
+              "Show me patterns for caching",
+              "What's the recommended approach for API design?"
+            ]
+          },
+          {
+            "category": "pattern_learning",
+            "description": "Capturing coding approaches, lessons learned, or insights after completing work",
+            "examples": [
+              "Capture what I just learned",
+              "Save this pattern for later",
+              "Remember this approach",
+              "Store this as a best practice"
+            ]
+          },
+          {
+            "category": "troubleshooting",
+            "description": "Finding solutions to known issues, gotchas, or common problems",
+            "examples": [
+              "I'm getting a strange error with",
+              "Known issues with this library?",
+              "Common pitfalls to avoid"
+            ]
+          }
+        ],
         "commands": [
           {
             "name": "search",
@@ -81,7 +112,7 @@
         "displayName": "ACE Pattern Search",
         "toolReferenceName": "ace_search",
         "canBeReferencedInPrompt": true,
-        "modelDescription": "Search ACE playbook for relevant patterns before implementing. Use this to find proven solutions, gotchas, and best practices from previous work.",
+        "modelDescription": "MANDATORY: Search for proven coding patterns BEFORE implementing, building, fixing, or debugging. Returns battle-tested approaches, known gotchas, and best practices from the team's playbook. ALWAYS call this first when starting any coding task.",
         "userDescription": "Search ACE playbook for relevant patterns",
         "inputSchema": {
           "type": "object",
@@ -109,7 +140,7 @@
         "displayName": "ACE Learn",
         "toolReferenceName": "ace_learn",
         "canBeReferencedInPrompt": true,
-        "modelDescription": "Capture patterns from completed work. Call this after implementing features, fixing bugs, or discovering gotchas to save knowledge for future use.",
+        "modelDescription": "MANDATORY: Capture patterns from completed work. ALWAYS call this AFTER implementing features, fixing bugs, or discovering gotchas. Saves knowledge for future use - this is how the team learns and improves.",
         "userDescription": "Capture patterns and lessons learned from work",
         "inputSchema": {
           "type": "object",
@@ -259,6 +290,16 @@
           "type": "boolean",
           "default": false,
           "description": "Automatically suggest learning capture when commits are detected"
+        },
+        "ace.features.showQuotaWarnings": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show notifications when approaching quota limits (>80%)"
+        },
+        "ace.features.showUsageInStatusBar": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show usage percentage in status bar tooltip"
         }
       }
     }
@@ -279,7 +320,7 @@
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.11.0",
-    "@types/vscode": "^1.102.0",
+    "@types/vscode": "^1.105.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "@vscode/test-cli": "^0.0.12",

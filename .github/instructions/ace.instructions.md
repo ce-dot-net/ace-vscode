@@ -1,7 +1,7 @@
 ---
 applyTo: "**/*"
 ---
-<!-- ACE_SECTION v0.4.17 -->
+<!-- ACE_SECTION v0.4.25 -->
 # ACE Pattern Learning Integration
 
 This project uses **ACE (Automatic Context Engine)** for pattern-based learning.
@@ -29,12 +29,27 @@ When the conversation topic shifts significantly:
 
 **INVOKE**: `#ce-dot-net.ace-vscode/ace_search` with NEW topic query BEFORE continuing.
 
+## Domain-Aware Search (v0.4.18)
+
+**List domains:** Use `/domains` to see available domains with pattern counts.
+
+**Filter search by domain:**
+- `ace_search query --allowed-domains <domain1,domain2>`
+- `ace_search query --blocked-domains <domain1,domain2>`
+
+**When topic changes, search in relevant domain:**
+1. Detect topic change (auth → caching, API → database, etc.)
+2. Use `/domains` to discover relevant domain name
+3. Call `ace_search` with `allowed_domains` parameter
+
+Example domains: `vscode-extension-architecture-and-development`, `git-operations`, `node-express-jwt-authentication`
+
 ## Available Tools
 
-- `#ce-dot-net.ace-vscode/ace_search` - Find relevant patterns (BEFORE work)
+- `#ce-dot-net.ace-vscode/ace_search` - Find relevant patterns (BEFORE work, supports domain filtering)
 - `#ce-dot-net.ace-vscode/ace_learn` - Capture patterns (AFTER work)
 - `#ce-dot-net.ace-vscode/ace_get_playbook` - View all patterns
-- `#ce-dot-net.ace-vscode/ace_status` - Show statistics
+- `#ce-dot-net.ace-vscode/ace_status` - Show statistics and top domains
 
 **Remember: ace_search BEFORE, ace_learn AFTER - BOTH are MANDATORY!**
 <!-- ACE_SECTION_END -->

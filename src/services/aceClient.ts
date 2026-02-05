@@ -1,9 +1,36 @@
 import * as vscode from 'vscode';
-import { AceClient, type AceConfig, loadUserAuth, isAuthenticated } from '@ace-sdk/core';
+import {
+    AceClient,
+    type AceConfig,
+    type AceClientOptions,
+    type UsageInfo,
+    loadUserAuth,
+    isAuthenticated
+} from '@ace-sdk/core';
 import { getProjectConfig } from './config';
 
 // Cache clients per folder (keyed by folder URI string)
 const clientCache = new Map<string, AceClient>();
+
+// Track last usage info for status bar updates
+let lastUsageInfo: UsageInfo | undefined;
+
+// Track quota warnings to avoid spamming (keyed by resource name)
+const shownQuotaWarnings = new Set<string>();
+
+/**
+ * Gets the last known usage info (from quota callbacks).
+ */
+export function getLastUsageInfo(): UsageInfo | undefined {
+    return lastUsageInfo;
+}
+
+/**
+ * Clears the quota warning tracking (e.g., on new session).
+ */
+export function clearQuotaWarningTracking(): void {
+    shownQuotaWarnings.clear();
+}
 
 /**
  * Gets the user token from device login.
@@ -47,7 +74,65 @@ export function getAceClient(folder?: vscode.WorkspaceFolder): AceClient | null 
         cacheTtlMinutes: 5
     };
 
-    const client = new AceClient(config);
+    // Get feature flags from settings
+    const settings = vscode.workspace.getConfiguration('ace');
+    const showQuotaWarnings = settings.get<boolean>('features.showQuotaWarnings', true);
+
+    // Create client options with quota callbacks
+    const clientOptions: AceClientOptions = {};
+
+    // Usage update callback - tracks last usage for status bar
+    clientOptions.onUsageUpdate = (usage: UsageInfo) => {
+        lastUsageInfo = usage;
+        console.log(`[ACE] Usage update: ${usage.plan} plan, status=${usage.status}`);
+    };
+
+    // Quota warning callback - shows notification when >80%
+    if (showQuotaWarnings) {
+        clientOptions.onQuotaWarning = (message: string, percentage: number, resource: string) => {
+            // Only show each warning once per session
+            if (!shownQuotaWarnings.has(resource)) {
+                shownQuotaWarnings.add(resource);
+                vscode.window.showWarningMessage(
+                    `ACE: ${message}. Consider upgrading your plan.`,
+                    'View Status'
+                ).then(selection => {
+                    if (selection === 'View Status') {
+                        vscode.commands.executeCommand('ace-vscode.showStatus');
+                    }
+                });
+                console.log(`[ACE] Quota warning: ${resource} at ${percentage}%`);
+            }
+        };
+    }
+
+    // Read-only mode callback - quota exceeded
+    clientOptions.onReadOnlyMode = (daysUntilBlock: number) => {
+        vscode.window.showWarningMessage(
+            `ACE: Quota exceeded. Account will be blocked in ${daysUntilBlock} days. Please upgrade your plan.`,
+            'Upgrade'
+        ).then(selection => {
+            if (selection === 'Upgrade') {
+                vscode.env.openExternal(vscode.Uri.parse('https://ace-ai.app/pricing'));
+            }
+        });
+        console.log(`[ACE] Read-only mode: ${daysUntilBlock} days until block`);
+    };
+
+    // Account blocked callback
+    clientOptions.onAccountBlocked = () => {
+        vscode.window.showErrorMessage(
+            'ACE: Account blocked due to quota. Please update your payment method.',
+            'Manage Account'
+        ).then(selection => {
+            if (selection === 'Manage Account') {
+                vscode.env.openExternal(vscode.Uri.parse('https://ace-ai.app/account'));
+            }
+        });
+        console.log('[ACE] Account blocked');
+    };
+
+    const client = new AceClient(config, clientOptions);
 
     // Cache for future use
     clientCache.set(cacheKey, client);
