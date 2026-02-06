@@ -2,7 +2,7 @@
 
 > 🔐 **Account Required** - This extension requires an ACE account to work.
 >
-> **[→ Sign up for ACE](https://ace-ai.app)** to create your account and start using ACE.
+> **[→ Sign up for ACE](https://ace-ai.app)** | **[💬 Join our Community](https://www.ace-ai.app/community)**
 >
 > Without an account, the extension cannot connect to the ACE server.
 
@@ -162,13 +162,22 @@ Configure in VS Code Settings (`Cmd+,`) or `.vscode/settings.json`:
 
 ## Requirements
 
-- VS Code (v1.102.0+)
+- VS Code (v1.105.0+)
 - GitHub Copilot Chat extension
 - ACE account at [ace-ai.app](https://ace-ai.app)
+
+## Support & Community
+
+Need help? Have questions? Join our community!
+
+- **[💬 Slack Community](https://www.ace-ai.app/community)** - Chat with the team and other users
+- **[📖 Documentation](https://ace-ai.app/docs)** - Guides and API reference
+- **[🐛 Report Issues](https://github.com/ce-dot-net/ace-vscode/issues)** - Bug reports and feature requests
 
 ## Links
 
 - [ACE Website](https://ace-ai.app)
+- [Community & Support](https://www.ace-ai.app/community)
 - [Documentation](https://ace-ai.app/docs)
 - [GitHub](https://github.com/ce-dot-net/ace-vscode)
 - [Report Issues](https://github.com/ce-dot-net/ace-vscode/issues)

@@ -5,6 +5,17 @@ All notable changes to ACE for VSCode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.26] - 2026-02-06
+
+### Added
+- **Community & Support section in README**: Prominent link to Slack community
+  - Added `[💬 Join our Community](https://www.ace-ai.app/community)` next to signup
+  - New "Support & Community" section with Slack, docs, and issue links
+  - Updated Links section with community link
+
+### Changed
+- **VS Code requirement in README**: Updated from v1.102.0+ to v1.105.0+ to match package.json
+
 ## [0.4.25] - 2026-02-05
 
 ### Added
