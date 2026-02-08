@@ -1,6 +1,12 @@
 import * as vscode from 'vscode';
 import { formatMarkdown, formatError, formatSectionHeader } from '../utils/formatters';
 import { getClientForChat, formatProjectContext } from '../utils/chatContext';
+import {
+    generateSessionId,
+    saveSession,
+    getSessionKey,
+    SESSION_TTL
+} from '../../services/sessionStorage';
 import type { PlaybookBullet } from '@ace-sdk/core';
 
 /**
@@ -79,6 +85,19 @@ export async function handleSearch(
         const result = await client.searchPatterns(searchOptions);
 
         const patterns: PlaybookBullet[] = result.similar_patterns || [];
+
+        // Save session with pattern IDs for attribution
+        const patternIds = patterns.map(p => p.id).filter((id): id is string => Boolean(id));
+        if (patternIds.length > 0) {
+            const sessionKey = getSessionKey(folder);
+            saveSession(sessionKey, {
+                session_id: generateSessionId(),
+                pattern_ids: patternIds,
+                query: query,
+                timestamp: Date.now(),
+                expires_at: Date.now() + SESSION_TTL
+            });
+        }
 
         if (patterns.length === 0) {
             formatMarkdown(stream, '*No matching patterns found.*\n\n');

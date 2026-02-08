@@ -132,6 +132,9 @@ export class ConfigPanel {
                     case 'logout':
                         await this._handleLogout();
                         break;
+                    case 'autoSave':
+                        await this._autoSaveConfiguration(message.data);
+                        break;
                 }
             },
             null,
@@ -374,6 +377,96 @@ export class ConfigPanel {
                 command: 'saveResult',
                 success: false,
                 message: `Save failed: ${error instanceof Error ? error.message : String(error)}`
+            });
+        }
+    }
+
+    /**
+     * Auto-save configuration when dropdown changes (debounced in webview)
+     * Called automatically when user selects org/project from dropdown.
+     * Shows subtle status bar confirmation instead of modal dialog.
+     */
+    private async _autoSaveConfiguration(data: {
+        serverUrl: string;
+        orgId: string;
+        projectId: string;
+    }) {
+        try {
+            // Verify user is logged in
+            if (!isAuthenticated()) {
+                this._panel.webview.postMessage({
+                    command: 'autoSaveResult',
+                    success: false,
+                    message: 'Please login first'
+                });
+                return;
+            }
+
+            // Validate required fields
+            if (!data.serverUrl || !data.orgId || !data.projectId) {
+                this._panel.webview.postMessage({
+                    command: 'autoSaveResult',
+                    success: false,
+                    message: 'Missing required fields'
+                });
+                return;
+            }
+
+            const configDir = path.join(process.env.HOME || '', '.config', 'ace');
+            const configPath = path.join(configDir, 'config.json');
+
+            // Ensure directory exists
+            if (!fs.existsSync(configDir)) {
+                fs.mkdirSync(configDir, { recursive: true });
+            }
+
+            // Load existing config
+            let existingConfig: Record<string, unknown> = {};
+            if (fs.existsSync(configPath)) {
+                try {
+                    existingConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+                } catch {
+                    // Start fresh if invalid
+                }
+            }
+
+            // Build config - user token flow only (no apiToken field)
+            const config: Record<string, unknown> = {
+                ...existingConfig,
+                serverUrl: data.serverUrl,
+                projectId: data.projectId,
+                cacheTtlMinutes: (existingConfig.cacheTtlMinutes as number) || 120,
+                auth: {
+                    ...(existingConfig.auth as Record<string, unknown> || {}),
+                    default_org_id: data.orgId
+                }
+            };
+
+            // Write config with secure permissions
+            if (process.platform !== 'win32') {
+                fs.writeFileSync(configPath, JSON.stringify(config, null, 2), { mode: 0o600 });
+            } else {
+                fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+            }
+
+            // Save project context to workspace (folder-aware)
+            await saveProjectConfig(data.projectId, data.orgId, this._targetFolder);
+
+            const folderMsg = this._targetFolder ? ` for "${this._targetFolder.name}"` : '';
+
+            // Show subtle status bar notification (auto-dismisses after 3 seconds)
+            vscode.window.setStatusBarMessage(`ACE: Auto-saved${folderMsg}`, 3000);
+
+            this._panel.webview.postMessage({
+                command: 'autoSaveResult',
+                success: true,
+                message: `Configuration auto-saved${folderMsg}`
+            });
+        } catch (error) {
+            this._panel.webview.postMessage({
+                command: 'autoSaveResult',
+                success: false,
+                message: `Auto-save failed: ${error instanceof Error ? error.message : String(error)}`
             });
         }
     }
@@ -672,6 +765,64 @@ export class ConfigPanel {
         const existingOrgId = '${escapeHtml(orgId)}';
         const existingProjectId = '${escapeHtml(projectId)}';
 
+        // Auto-save debounce state
+        let autoSaveTimeoutId = null;
+        const AUTO_SAVE_DEBOUNCE_MS = 500;
+
+        /**
+         * Checks if auto-save can proceed (all required fields valid)
+         */
+        function canAutoSave() {
+            const serverUrl = document.getElementById('serverUrl').value;
+            const orgId = document.getElementById('orgId').value || document.getElementById('orgIdManual').value;
+            const projectId = document.getElementById('projectId').value || document.getElementById('projectIdManual').value;
+
+            return isUserLoggedIn && !isExpired && serverUrl && orgId && projectId;
+        }
+
+        /**
+         * Schedules an auto-save with debouncing (500ms)
+         */
+        function scheduleAutoSave() {
+            // Cancel any pending auto-save
+            if (autoSaveTimeoutId !== null) {
+                clearTimeout(autoSaveTimeoutId);
+            }
+
+            // Only schedule if we can auto-save
+            if (!canAutoSave()) {
+                return;
+            }
+
+            // Schedule new save after debounce delay
+            autoSaveTimeoutId = setTimeout(() => {
+                autoSaveTimeoutId = null;
+                performAutoSave();
+            }, AUTO_SAVE_DEBOUNCE_MS);
+        }
+
+        /**
+         * Performs the actual auto-save
+         */
+        function performAutoSave() {
+            const serverUrl = document.getElementById('serverUrl').value;
+            const orgId = document.getElementById('orgId').value || document.getElementById('orgIdManual').value;
+            const projectId = document.getElementById('projectId').value || document.getElementById('projectIdManual').value;
+
+            if (!serverUrl || !orgId || !projectId) {
+                return; // Don't save if fields are incomplete
+            }
+
+            vscode.postMessage({
+                command: 'autoSave',
+                data: {
+                    serverUrl: serverUrl,
+                    orgId: orgId,
+                    projectId: projectId
+                }
+            });
+        }
+
         (function init() {
             document.getElementById('setProductionUrl').addEventListener('click', () => {
                 document.getElementById('serverUrl').value = 'https://ace-api.code-engine.app';
@@ -679,6 +830,13 @@ export class ConfigPanel {
 
             const orgSelect = document.getElementById('orgId');
             orgSelect.addEventListener('change', onOrgChange);
+
+            // Add auto-save listener for project dropdown
+            const projectSelect = document.getElementById('projectId');
+            projectSelect.addEventListener('change', () => {
+                // Schedule auto-save after project selection
+                scheduleAutoSave();
+            });
 
             document.getElementById('configForm').addEventListener('submit', handleSubmit);
 
@@ -876,6 +1034,11 @@ export class ConfigPanel {
                 projectSelect.style.display = 'none';
                 projectManual.style.display = 'block';
             }
+
+            // Schedule auto-save after projects are populated (if a project is selected)
+            if (projectSelect.value) {
+                scheduleAutoSave();
+            }
         }
 
         function handleSubmit(e) {
@@ -1039,6 +1202,18 @@ export class ConfigPanel {
                         showStatus('Agent files created in .github/agents/ folder!', 'success');
                     } else {
                         showStatus('Failed to create agent files', 'error');
+                    }
+                    break;
+                case 'autoSaveResult':
+                    if (message.success) {
+                        // Show subtle success indication (brief flash)
+                        showStatus(message.message || 'Auto-saved', 'success');
+                        // Auto-hide after 2 seconds
+                        setTimeout(() => {
+                            document.getElementById('statusMessage').style.display = 'none';
+                        }, 2000);
+                    } else {
+                        showStatus(message.message || 'Auto-save failed', 'error');
                     }
                     break;
             }

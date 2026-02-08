@@ -2,6 +2,11 @@ import * as vscode from 'vscode';
 import type { LearningStreamEvent } from '@ace-sdk/core';
 import { formatMarkdown, formatSectionHeader, formatSuccess, formatError } from '../utils/formatters';
 import { getClientForChat, formatProjectContext } from '../utils/chatContext';
+import {
+    getSession,
+    clearSession,
+    getSessionKey
+} from '../../services/sessionStorage';
 
 /**
  * Handles the /learn command - capture patterns from the current session
@@ -37,11 +42,16 @@ export async function handleLearn(
     formatMarkdown(stream, `📝 Capturing: **${description}**\n\n`);
 
     try {
+        // Retrieve playbook_used from session (populated by /search)
+        const sessionKey = getSessionKey(folder);
+        const session = getSession(sessionKey);
+        const playbookUsed = session?.pattern_ids ?? [];
+
         const trace = {
             task: description,
             trajectory: [`Task: ${description}`],
             result: { success: true, output: description },
-            playbook_used: [] as string[],
+            playbook_used: playbookUsed,
             timestamp: new Date().toISOString()
         };
 
@@ -79,6 +89,12 @@ export async function handleLearn(
             if (parts.length > 0) {
                 formatMarkdown(stream, `**Statistics:** ${parts.join('  ')}\n\n`);
             }
+        }
+
+        // Show pattern attribution info and clear session
+        if (playbookUsed.length > 0) {
+            formatMarkdown(stream, `📎 Linked to ${playbookUsed.length} patterns from previous search\n`);
+            clearSession(sessionKey);
         }
 
     } catch (error) {

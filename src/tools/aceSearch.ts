@@ -1,5 +1,11 @@
 import * as vscode from 'vscode';
 import { getAceClient } from '../services/aceClient';
+import {
+    generateSessionId,
+    saveSession,
+    getSessionKey,
+    SESSION_TTL
+} from '../services/sessionStorage';
 import type { PlaybookBullet } from '@ace-sdk/core';
 
 interface AceSearchInput {
@@ -55,6 +61,21 @@ export class AceSearchTool implements vscode.LanguageModelTool<AceSearchInput> {
             const patterns: PlaybookBullet[] = result.similar_patterns || [];
             const count = patterns.length;
 
+            // Generate session and save pattern IDs for attribution
+            const sessionKey = getSessionKey(); // 'default' for tool handler (no folder context)
+            const sessionId = generateSessionId();
+            const patternIds = patterns.map(p => p.id).filter((id): id is string => Boolean(id));
+
+            if (patternIds.length > 0) {
+                saveSession(sessionKey, {
+                    session_id: sessionId,
+                    pattern_ids: patternIds,
+                    query: query,
+                    timestamp: Date.now(),
+                    expires_at: Date.now() + SESSION_TTL
+                });
+            }
+
             // Format verbose output matching CLI plugin style
             const domainFilter = allowed_domains
                 ? ` in domain(s): ${allowed_domains}`
@@ -83,6 +104,11 @@ export class AceSearchTool implements vscode.LanguageModelTool<AceSearchInput> {
             // Show efficiency gain from metadata if available
             if (result.metadata?.efficiency_gain) {
                 output += `\n💡 ${result.metadata.efficiency_gain} token efficiency\n`;
+            }
+
+            // Show session tracking info for pattern attribution
+            if (patternIds.length > 0) {
+                output += `\n🔗 Session: \`${sessionId}\` (${patternIds.length} patterns tracked for attribution)\n`;
             }
 
             return new vscode.LanguageModelToolResult([

@@ -135,7 +135,7 @@ function migrateLegacyCopilotInstructions(workspaceRoot: string): boolean {
  * Compares versions (semver-like)
  * Returns: -1 if a < b, 0 if a == b, 1 if a > b
  */
-function compareVersions(a: string, b: string): number {
+export function compareVersions(a: string, b: string): number {
     const partsA = a.split('.').map(Number);
     const partsB = b.split('.').map(Number);
 
@@ -149,8 +149,25 @@ function compareVersions(a: string, b: string): number {
 }
 
 /**
- * Checks if an update is needed and prompts user
- * Called on extension activation
+ * Shows a non-blocking notification via status bar message.
+ * Auto-dismisses after the specified timeout.
+ *
+ * @param message The message to display
+ * @param timeoutMs Auto-dismiss timeout in milliseconds (default: 5000ms)
+ */
+export function showNonBlockingNotification(message: string, timeoutMs: number = 5000): void {
+    vscode.window.setStatusBarMessage(message, timeoutMs);
+}
+
+/**
+ * Checks if an update is needed and auto-creates/updates silently.
+ * Called on extension activation.
+ *
+ * Auto-Update Behavior (v0.4.27+):
+ * - First install: Auto-creates files without prompt
+ * - Version upgrade: Auto-updates files without prompt
+ * - Opt-out (version "0.0.0"): Respects user preference, does nothing
+ * - Shows non-blocking status bar notification instead of modal dialog
  */
 export async function checkAgentFilesUpdate(): Promise<void> {
     const workspaceRoot = getWorkspaceRoot();
@@ -161,24 +178,19 @@ export async function checkAgentFilesUpdate(): Promise<void> {
     const installedVersion = getInstalledVersion(workspaceRoot);
     const filesExist = agentFilesExist(workspaceRoot);
 
-    // Case 1: Files don't exist at all - prompt to create
+    // Case 1: Files don't exist at all - auto-create (first install)
     if (!filesExist) {
-        const result = await vscode.window.showInformationMessage(
-            'ACE: Create GitHub Copilot agent files for pattern learning?',
-            'Create Files',
-            'Not Now',
-            "Don't Ask Again"
-        );
+        // Check for opt-out before auto-creating
+        if (installedVersion === '0.0.0') {
+            console.log('ACE: User opted out of agent files');
+            return;
+        }
 
-        if (result === 'Create Files') {
-            await handleUpdateAgents(false);
-        } else if (result === "Don't Ask Again") {
-            // Write version 0.0.0 to suppress future prompts
-            const githubDir = path.join(workspaceRoot, '.github');
-            if (!fs.existsSync(githubDir)) {
-                fs.mkdirSync(githubDir, { recursive: true });
-            }
-            writeVersionFile(workspaceRoot, '0.0.0');
+        try {
+            await handleUpdateAgents(true); // Silent mode
+            showNonBlockingNotification(`ACE: Agent files created (v${AGENT_FILES_VERSION})`, 5000);
+        } catch (error) {
+            console.error('ACE: Failed to auto-create agent files:', error);
         }
         return;
     }
@@ -196,20 +208,16 @@ export async function checkAgentFilesUpdate(): Promise<void> {
         return;
     }
 
-    // Case 4: Check if update is needed
+    // Case 4: Check if update is needed - auto-update without prompt
     if (compareVersions(installedVersion, AGENT_FILES_VERSION) < 0) {
-        const result = await vscode.window.showInformationMessage(
-            `ACE: Agent files update available (${installedVersion} → ${AGENT_FILES_VERSION})`,
-            'Update Now',
-            'Later',
-            'Skip This Version'
-        );
-
-        if (result === 'Update Now') {
-            await handleUpdateAgents(false);
-        } else if (result === 'Skip This Version') {
-            // Write current version to skip this update
-            writeVersionFile(workspaceRoot, AGENT_FILES_VERSION);
+        try {
+            await handleUpdateAgents(true); // Silent mode
+            showNonBlockingNotification(
+                `ACE: Agent files updated (${installedVersion} → ${AGENT_FILES_VERSION})`,
+                5000
+            );
+        } catch (error) {
+            console.error('ACE: Failed to auto-update agent files:', error);
         }
     }
 }
@@ -460,6 +468,7 @@ function getAceAgentContent(): string {
 name: ace-expert
 description: Pattern-enhanced coding with automatic ACE tool invocation
 target: vscode
+user-invokable: true
 tools:
   - ce-dot-net.ace-vscode/ace_search
   - ce-dot-net.ace-vscode/ace_learn

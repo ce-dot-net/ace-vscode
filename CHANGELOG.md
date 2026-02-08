@@ -5,6 +5,51 @@ All notable changes to ACE for VSCode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.28] - 2026-02-08
+
+### Added
+- **Session ID tracking for pattern attribution** (Issue #4)
+  - `ace_search` now generates session ID and tracks pattern IDs
+  - `ace_learn` retrieves `playbook_used` from session, linking to patterns consulted
+  - Session automatically clears after learning capture
+  - 4-hour TTL handles typical coding sessions
+- **New sessionStorage service**: `src/services/sessionStorage.ts`
+  - Per-workspace session isolation (multi-root workspace support)
+  - In-memory storage (no SQLite dependency)
+  - Exported functions: `generateSessionId`, `saveSession`, `getSession`, `clearSession`
+- **TDD tests for sessionStorage**: Comprehensive test coverage (~200 lines)
+
+### Changed
+- `ace_search` output now shows `🔗 Session: sess_xxx (N patterns tracked)`
+- `ace_learn` output now shows `📎 Linked to N patterns from previous search`
+- Both tool handlers (`aceSearch.ts`, `aceLearn.ts`) and chat commands (`search.ts`, `learn.ts`) updated
+
+### Fixed
+- **Issue #4**: `playbook_used` is no longer empty - now populated with pattern IDs from search
+
+## [0.4.27] - 2026-02-06
+
+### Added
+- **Auto-initialize agent files on install/update**: No more manual "Update Agent Files" button
+  - First install: Auto-creates `.github/agents/`, `instructions/`, and `skills/` without prompt
+  - Version upgrade: Auto-updates files silently when extension version changes
+  - Shows non-blocking status bar notification instead of modal dialog
+  - Respects user opt-out (version "0.0.0" in `.ace-version.json`)
+  - Keep manual "Update Agent Files" command as fallback
+- **Auto-save config on dropdown change**: No more "Save" button required
+  - Config saves automatically when org/project dropdown selection changes
+  - 500ms debounce prevents rapid-fire saves during browsing
+  - Validates: both org AND project must be selected before saving
+  - Shows subtle status bar confirmation instead of modal dialog
+  - Manual "Save Configuration" button remains as fallback
+- **TDD test coverage**: Comprehensive tests for both features
+  - `src/test/suite/commands/updateAgents.test.ts` (970 lines)
+  - `src/test/suite/ui/configPanel.autoSave.test.ts` (991 lines)
+
+### Changed
+- **Agent file frontmatter** (VS Code 1.109): Added `user-invokable: true` to ace-expert agent
+- **Status bar notifications**: Use `setStatusBarMessage()` for non-blocking UX
+
 ## [0.4.26] - 2026-02-06
 
 ### Added

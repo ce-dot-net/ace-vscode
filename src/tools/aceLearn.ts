@@ -1,5 +1,10 @@
 import * as vscode from 'vscode';
 import { getAceClient } from '../services/aceClient';
+import {
+    getSession,
+    clearSession,
+    getSessionKey
+} from '../services/sessionStorage';
 import type { LearningStreamEvent } from '@ace-sdk/core';
 
 interface AceLearnInput {
@@ -28,11 +33,16 @@ export class AceLearnTool implements vscode.LanguageModelTool<AceLearnInput> {
         }
 
         try {
+            // Retrieve playbook_used from session (populated by ace_search)
+            const sessionKey = getSessionKey(); // 'default' for tool handler
+            const session = getSession(sessionKey);
+            const playbookUsed = session?.pattern_ids ?? [];
+
             const trace = {
                 task,
                 trajectory: [] as string[],
                 result: { success, output: taskOutput || '' },
-                playbook_used: [] as string[],
+                playbook_used: playbookUsed,
                 timestamp: new Date().toISOString()
             };
 
@@ -88,6 +98,12 @@ export class AceLearnTool implements vscode.LanguageModelTool<AceLearnInput> {
                 }
             } else {
                 output += `   Analysis pending\n`;
+            }
+
+            // Show pattern attribution info and clear session
+            if (playbookUsed.length > 0) {
+                output += `\n📎 Linked to ${playbookUsed.length} patterns from previous search\n`;
+                clearSession(sessionKey);
             }
 
             return new vscode.LanguageModelToolResult([
