@@ -67,10 +67,13 @@ export function getAceClient(folder?: vscode.WorkspaceFolder): AceClient | null 
     }
 
     // Create AceConfig for the client
+    // IMPORTANT: Must include default_org_id - SDK fallback extractOrgId() only works with legacy org tokens,
+    // not user tokens from device login (ace_user_xxx vs ace_org_xxx)
     const config: AceConfig = {
         serverUrl: projectConfig.serverUrl,
         apiToken: token,
         projectId: projectConfig.projectId,
+        default_org_id: projectConfig.orgId,
         cacheTtlMinutes: 5
     };
 
