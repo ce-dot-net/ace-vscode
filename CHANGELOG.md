@@ -5,6 +5,14 @@ All notable changes to ACE for VSCode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.31] - 2026-02-09
+
+### Added
+- **Upgrade button in quota warning**: Direct link to billing page when quota >80%
+  - Quota warning popup now shows "Upgrade" and "View Status" buttons
+  - Read-only mode and blocked account popups link to billing page
+  - URL: `https://www.ace-ai.app/dashboard/settings?tab=billing`
+
 ## [0.4.30] - 2026-02-09
 
 ### Fixed

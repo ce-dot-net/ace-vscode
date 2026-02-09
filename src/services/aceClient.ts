@@ -101,9 +101,12 @@ export function getAceClient(folder?: vscode.WorkspaceFolder): AceClient | null 
                 shownQuotaWarnings.add(resource);
                 vscode.window.showWarningMessage(
                     `ACE: ${message}. Consider upgrading your plan.`,
+                    'Upgrade',
                     'View Status'
                 ).then(selection => {
-                    if (selection === 'View Status') {
+                    if (selection === 'Upgrade') {
+                        vscode.env.openExternal(vscode.Uri.parse('https://www.ace-ai.app/dashboard/settings?tab=billing'));
+                    } else if (selection === 'View Status') {
                         vscode.commands.executeCommand('ace-vscode.showStatus');
                     }
                 });
@@ -119,7 +122,7 @@ export function getAceClient(folder?: vscode.WorkspaceFolder): AceClient | null 
             'Upgrade'
         ).then(selection => {
             if (selection === 'Upgrade') {
-                vscode.env.openExternal(vscode.Uri.parse('https://ace-ai.app/pricing'));
+                vscode.env.openExternal(vscode.Uri.parse('https://www.ace-ai.app/dashboard/settings?tab=billing'));
             }
         });
         console.log(`[ACE] Read-only mode: ${daysUntilBlock} days until block`);
@@ -129,10 +132,10 @@ export function getAceClient(folder?: vscode.WorkspaceFolder): AceClient | null 
     clientOptions.onAccountBlocked = () => {
         vscode.window.showErrorMessage(
             'ACE: Account blocked due to quota. Please update your payment method.',
-            'Manage Account'
+            'Manage Billing'
         ).then(selection => {
-            if (selection === 'Manage Account') {
-                vscode.env.openExternal(vscode.Uri.parse('https://ace-ai.app/account'));
+            if (selection === 'Manage Billing') {
+                vscode.env.openExternal(vscode.Uri.parse('https://www.ace-ai.app/dashboard/settings?tab=billing'));
             }
         });
         console.log('[ACE] Account blocked');
