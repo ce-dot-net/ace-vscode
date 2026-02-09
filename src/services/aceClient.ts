@@ -1,11 +1,12 @@
 import * as vscode from 'vscode';
 import {
     AceClient,
-    type AceConfig,
+    type AceContext,
     type AceClientOptions,
     type UsageInfo,
     loadUserAuth,
-    isAuthenticated
+    isAuthenticated,
+    DEFAULT_RUNTIME_SETTINGS
 } from '@ace-sdk/core';
 import { getProjectConfig } from './config';
 
@@ -66,15 +67,17 @@ export function getAceClient(folder?: vscode.WorkspaceFolder): AceClient | null 
         return cached;
     }
 
-    // Create AceConfig for the client
-    // IMPORTANT: Must include default_org_id - SDK fallback extractOrgId() only works with legacy org tokens,
-    // not user tokens from device login (ace_user_xxx vs ace_org_xxx)
-    const config: AceConfig = {
+    // Create AceContext for the client (not AceConfig!)
+    // IMPORTANT: SDK checks for 'orgId' in config, not 'default_org_id'
+    // SDK line: const orgId = 'orgId' in config ? config.orgId : this.extractOrgId(apiToken);
+    // extractOrgId() only works with legacy org tokens (ace_org_xxx), not user tokens (ace_user_xxx)
+    const config: AceContext = {
         serverUrl: projectConfig.serverUrl,
         apiToken: token,
         projectId: projectConfig.projectId,
-        default_org_id: projectConfig.orgId,
-        cacheTtlMinutes: 5
+        orgId: projectConfig.orgId,
+        cacheTtlMinutes: 5,
+        runtimeSettings: DEFAULT_RUNTIME_SETTINGS
     };
 
     // Get feature flags from settings

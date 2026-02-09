@@ -5,13 +5,22 @@ All notable changes to ACE for VSCode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.30] - 2026-02-09
+
+### Fixed
+- **Org ID bug with device login tokens** (second fix): SDK was still extracting malformed org ID
+  - Root cause: SDK checks `'orgId' in config`, not `default_org_id`
+  - SDK line: `const orgId = 'orgId' in config ? config.orgId : this.extractOrgId(apiToken)`
+  - Fix: Use `AceContext` type (has `orgId`) instead of `AceConfig` (has `default_org_id`)
+  - Fixes 403 error: "User is not a member of organization user_Q8Q"
+
 ## [0.4.29] - 2026-02-09
 
 ### Fixed
 - **Org ID bug with device login tokens**: SDK was extracting malformed org ID (`user_Q8Q`) from user tokens
   - Root cause: `AceConfig` uses `default_org_id`, not `orgId`
   - SDK's `extractOrgId()` fallback only works with legacy org tokens (`ace_org_xxx`)
-  - Fix: Pass `default_org_id: projectConfig.orgId` to AceClient config
+  - Fix: Pass `default_org_id: projectConfig.orgId` to AceClient config (INCORRECT - see v0.4.30)
   - Fixes 403 error: "User is not a member of organization user_Q8Q"
 
 ## [0.4.28] - 2026-02-08
