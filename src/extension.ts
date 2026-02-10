@@ -7,6 +7,8 @@ import { activateUI, StatusPanel } from './ui';
 import { AceSearchTool, AceLearnTool, AceStatusTool, AcePlaybookTool } from './tools';
 import { invalidateClient } from './services/aceClient';
 import { checkAgentFilesUpdate } from './commands/updateAgents';
+import { AceMcpServerProvider } from './mcp';
+import { MCP_PROVIDER_ID } from './constants';
 
 /**
  * Extension activation
@@ -21,6 +23,19 @@ export function activate(context: vscode.ExtensionContext): void {
         console.log('ACE: Tools registered');
     } catch (error) {
         console.error('ACE: Failed to register tools:', error);
+    }
+
+    // Register MCP server provider for multi-agent support (VS Code 1.108+)
+    try {
+        if (typeof vscode.lm.registerMcpServerDefinitionProvider === 'function') {
+            const mcpProvider = new AceMcpServerProvider();
+            context.subscriptions.push(
+                vscode.lm.registerMcpServerDefinitionProvider(MCP_PROVIDER_ID, mcpProvider)
+            );
+            console.log('ACE: MCP server provider registered');
+        }
+    } catch (error) {
+        console.error('ACE: Failed to register MCP provider:', error);
     }
 
     try {

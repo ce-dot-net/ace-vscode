@@ -32,10 +32,14 @@ export const CHAT_COMMANDS = {
 // ACE Server configuration
 export const DEFAULT_SERVER_URL = 'https://ace-api.code-engine.app';
 
+// MCP Server provider
+export const MCP_PROVIDER_ID = 'ace-mcp-provider';
+export const MCP_PROVIDER_LABEL = 'ACE Pattern Learning';
+
 // Agent files version - bump this ONLY when agent file CONTENT changes
 // This is separate from extension version - only triggers update popup when agent files have new content
-// Current: 0.4.31 (add billing link to quota warning popup)
-export const AGENT_FILES_VERSION = '0.4.31';
+// Current: 0.4.32 (MCP server + handoff buttons for enforcement)
+export const AGENT_FILES_VERSION = '0.4.32';
 
 // Global config path (XDG standard, same as @ace-sdk/core)
 export const getGlobalConfigPath = (): string => {
