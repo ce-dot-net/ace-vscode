@@ -2,7 +2,7 @@
   "name": "ace-vscode",
   "displayName": "ACE for GitHub Copilot",
   "description": "Pattern learning and retrieval for GitHub Copilot - captures what works, retrieves it when needed",
-  "version": "0.4.31",
+  "version": "0.4.33",
   "publisher": "ce-dot-net",
   "license": "MIT",
   "repository": {
@@ -11,7 +11,7 @@
   },
   "icon": "resources/ace-icon.png",
   "engines": {
-    "vscode": "^1.105.0"
+    "vscode": "^1.115.0"
   },
   "categories": [
     "Machine Learning",
@@ -32,6 +32,17 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "ace-mcp-provider",
+        "label": "ACE Pattern Learning"
+      }
+    ],
+    "chatSkills": [
+      {
+        "path": "./skills/ace-pattern-learning/SKILL.md"
+      }
+    ],
     "chatParticipants": [
       {
         "id": "ace-vscode.ace",
@@ -133,6 +144,11 @@
           "required": [
             "query"
           ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
         }
       },
       {
@@ -161,6 +177,12 @@
           "required": [
             "task"
           ]
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
         }
       },
       {
@@ -173,6 +195,11 @@
         "inputSchema": {
           "type": "object",
           "properties": {}
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
         }
       },
       {
@@ -194,6 +221,11 @@
               "description": "Minimum helpful score to include"
             }
           }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
         }
       }
     ],
@@ -315,13 +347,13 @@
     "test": "vscode-test"
   },
   "dependencies": {
-    "@ace-sdk/core": "^2.9.3"
+    "@ace-sdk/core": "^2.13.2"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.11.0",
     "@types/sinon": "^21.0.0",
-    "@types/vscode": "^1.105.0",
+    "@types/vscode": "^1.115.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "@vscode/test-cli": "^0.0.12",

@@ -161,7 +161,8 @@ export class StatusPanel {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
                 'X-ACE-Org': orgId,
-                'X-ACE-Project': projectId
+                'X-ACE-Project': projectId,
+                'X-ACE-Client': 'copilot'
             }
         });
 

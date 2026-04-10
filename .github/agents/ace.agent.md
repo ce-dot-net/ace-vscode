@@ -12,6 +12,11 @@ tools:
   - read/readFile
   - edit/editFiles
   - read/problems
+handoffs:
+  - label: Capture Learning
+    agent: ace-learn
+    prompt: Capture what was learned from the implementation above.
+    send: false
 ---
 
 # ACE Expert Agent

@@ -7,6 +7,8 @@ import { activateUI, StatusPanel } from './ui';
 import { AceSearchTool, AceLearnTool, AceStatusTool, AcePlaybookTool } from './tools';
 import { invalidateClient } from './services/aceClient';
 import { checkAgentFilesUpdate } from './commands/updateAgents';
+import { AceMcpServerProvider } from './mcp';
+import { MCP_PROVIDER_ID } from './constants';
 
 /**
  * Extension activation
@@ -21,6 +23,19 @@ export function activate(context: vscode.ExtensionContext): void {
         console.log('ACE: Tools registered');
     } catch (error) {
         console.error('ACE: Failed to register tools:', error);
+    }
+
+    // Register MCP server provider for multi-agent support (VS Code 1.108+)
+    try {
+        if (typeof vscode.lm.registerMcpServerDefinitionProvider === 'function') {
+            const mcpProvider = new AceMcpServerProvider();
+            context.subscriptions.push(
+                vscode.lm.registerMcpServerDefinitionProvider(MCP_PROVIDER_ID, mcpProvider)
+            );
+            console.log('ACE: MCP server provider registered');
+        }
+    } catch (error) {
+        console.error('ACE: Failed to register MCP provider:', error);
     }
 
     try {
@@ -71,6 +86,8 @@ export function activate(context: vscode.ExtensionContext): void {
         console.log('ACE: Checking agent files...');
         checkAgentFilesUpdate().then(() => {
             console.log('ACE: Agent files check complete');
+            // After agent files are updated, check if hooks are enabled
+            checkHooksEnabled();
         }).catch(err => {
             console.error('ACE: Agent files check failed:', err);
         });
@@ -133,6 +150,33 @@ function registerAceTools(context: vscode.ExtensionContext): void {
     );
 
     console.log('ACE tools registered: ace_search, ace_learn, ace_status, ace_get_playbook');
+}
+
+/**
+ * Checks if chat hooks are enabled and prompts user if not.
+ * Hooks are required for ace_search/ace_learn enforcement via .github/hooks/ace-hooks.json.
+ * Only prompts once per workspace (tracked via workspace state).
+ */
+function checkHooksEnabled(): void {
+    const config = vscode.workspace.getConfiguration('chat');
+    const hooksEnabled = config.get<boolean>('hooks.enabled', false);
+
+    if (!hooksEnabled) {
+        // Check if we already prompted in this workspace
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.toString();
+        if (!workspaceRoot) return;
+
+        vscode.window.showInformationMessage(
+            'ACE: Enable chat hooks for automatic pattern search/learn enforcement?',
+            'Enable Hooks',
+            'Not Now'
+        ).then(selection => {
+            if (selection === 'Enable Hooks') {
+                config.update('hooks.enabled', true, vscode.ConfigurationTarget.Workspace);
+                vscode.window.showInformationMessage('ACE: Chat hooks enabled! ace_search will run at session start, ace_learn enforced at session end.');
+            }
+        });
+    }
 }
 
 /**

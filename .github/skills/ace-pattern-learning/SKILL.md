@@ -2,7 +2,7 @@
 name: ace-pattern-learning
 description: "Search ACE playbook before implementing, building, fixing, debugging, or refactoring code. Capture patterns after completing substantial coding work."
 ---
-<!-- ACE_SECTION v0.4.25 -->
+<!-- ACE_SECTION v0.4.32 -->
 # ACE Pattern Learning Skill
 
 This skill provides pattern-based learning for coding tasks.
