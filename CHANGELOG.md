@@ -5,6 +5,16 @@ All notable changes to ACE for VSCode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.3] - 2026-04-10
+
+### Changed
+- **@ace-sdk/core bumped to ^2.14.0** — CJS build + build-time version
+- **Webpack config cleaned up** — Removed ESM workarounds (extensionAlias, javascript/auto rule, version.js stub)
+  - Removed `ace-version-stub.js` (SDK no longer uses runtime readFileSync for version)
+  - Removed ESM processing rule for @ace-sdk (CJS resolves natively)
+  - Removed `extensionAlias` config (not needed with CJS)
+  - Kept native module stubs (better-sqlite3, linguist-js, skott) until SDK makes them optional
+
 ## [0.5.2] - 2026-04-10
 
 ### Fixed

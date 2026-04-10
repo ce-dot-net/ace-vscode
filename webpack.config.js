@@ -19,8 +19,8 @@ const config = {
     vscode: 'commonjs vscode'
   },
   plugins: [
-    // Replace native/optional modules with stubs
-    // The SDK gracefully handles missing optional dependencies
+    // @ace-sdk/core@2.14.0+ ships CJS build — no more ESM workarounds needed
+    // Only stub native optional deps that can't be bundled
     new webpack.NormalModuleReplacementPlugin(
       /better-sqlite3/,
       path.resolve(__dirname, 'src/stubs/better-sqlite3-stub.js')
@@ -32,20 +32,10 @@ const config = {
     new webpack.NormalModuleReplacementPlugin(
       /^skott$/,
       path.resolve(__dirname, 'src/stubs/skott-stub.js')
-    ),
-    // Stub @ace-sdk/core version module - it uses readFileSync with __dirname
-    // which gets baked as the CI build path in the webpack bundle
-    new webpack.NormalModuleReplacementPlugin(
-      /@ace-sdk\/core\/dist\/version/,
-      path.resolve(__dirname, 'src/stubs/ace-version-stub.js')
     )
   ],
   resolve: {
-    extensions: ['.ts', '.js'],
-    // Handle ESM packages
-    extensionAlias: {
-      '.js': ['.ts', '.js']
-    }
+    extensions: ['.ts', '.js']
   },
   module: {
     rules: [
@@ -57,15 +47,6 @@ const config = {
             loader: 'ts-loader'
           }
         ]
-      },
-      {
-        // Process ESM .js files from @ace-sdk/core
-        test: /\.m?js$/,
-        include: /node_modules\/@ace-sdk/,
-        type: 'javascript/auto',
-        resolve: {
-          fullySpecified: false
-        }
       }
     ]
   },
@@ -73,7 +54,6 @@ const config = {
   infrastructureLogging: {
     level: 'log'
   },
-  // Experiments for ESM support
   experiments: {
     outputModule: false
   }
