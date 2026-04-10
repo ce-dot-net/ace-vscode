@@ -281,8 +281,15 @@ suite('MCP Server Integration - Live Server', function () {
     // These tests spawn the actual @ace-sdk/mcp server process
     // using the SAME configuration the extension provides to VS Code.
     // This verifies the full chain: extension → provider → spawn → MCP protocol → tools.
+    // Skip in CI: requires auth token + server connection (not available in GitHub Actions)
 
     this.timeout(30000); // npx may need to download on first run
+
+    suiteSetup(function () {
+        if (process.env.CI || process.env.GITHUB_ACTIONS) {
+            this.skip();
+        }
+    });
 
     let mcpProcess: ChildProcess | null = null;
 
