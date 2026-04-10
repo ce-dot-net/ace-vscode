@@ -856,11 +856,11 @@ export class StatusPanel {
 
     <div class="quality-metrics">
         <div class="quality-item">
-            <div class="quality-value positive">${helpfulTotal}</div>
+            <div class="quality-value positive">${Math.round(helpfulTotal)}</div>
             <div class="quality-label">👍 Helpful</div>
         </div>
         <div class="quality-item">
-            <div class="quality-value negative">${harmfulTotal}</div>
+            <div class="quality-value negative">${Math.round(harmfulTotal)}</div>
             <div class="quality-label">👎 Harmful</div>
         </div>
         <div class="quality-item">
@@ -877,7 +877,7 @@ export class StatusPanel {
                 ${escapeHtml(p.content?.substring(0, 200))}${(p.content?.length || 0) > 200 ? '...' : ''}
                 <div class="pattern-meta">
                     <span class="pattern-badge">${escapeHtml(p.section?.replace(/_/g, ' ') || 'general')}</span>
-                    <span>👍 ${p.helpful || 0}</span>
+                    <span>👍 ${Math.round(p.helpful || 0)}</span>
                     <span>📊 ${Math.round((p.confidence || 0) * 100)}% confidence</span>
                     ${p.domain ? `<span>🏷️ ${escapeHtml(p.domain)}</span>` : ''}
                 </div>

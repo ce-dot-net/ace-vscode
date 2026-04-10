@@ -12,6 +12,22 @@ import { MCP_PROVIDER_ID } from './constants';
 import { activateFileWatcher } from './automation/fileWatcher';
 import { AceFileDecorationProvider } from './ui/fileDecorations';
 
+// Module-level MCP provider reference for post-login refresh
+let _mcpProvider: AceMcpServerProvider | null = null;
+
+/**
+ * Notify MCP provider and status bar that auth state changed.
+ * Called from login/logout commands to refresh the UI immediately.
+ */
+export function notifyAuthChanged(): void {
+    _mcpProvider?.fireChanged();
+    // Trigger a config change event to refresh status bar
+    vscode.commands.executeCommand('ace-vscode.showStatus').then(
+        () => {},
+        () => {} // Ignore if command doesn't exist yet
+    );
+}
+
 /**
  * Extension activation
  */
@@ -30,9 +46,9 @@ export function activate(context: vscode.ExtensionContext): void {
     // Register MCP server provider for multi-agent support (VS Code 1.108+)
     try {
         if (typeof vscode.lm.registerMcpServerDefinitionProvider === 'function') {
-            const mcpProvider = new AceMcpServerProvider();
+            _mcpProvider = new AceMcpServerProvider();
             context.subscriptions.push(
-                vscode.lm.registerMcpServerDefinitionProvider(MCP_PROVIDER_ID, mcpProvider)
+                vscode.lm.registerMcpServerDefinitionProvider(MCP_PROVIDER_ID, _mcpProvider)
             );
             console.log('ACE: MCP server provider registered');
         }

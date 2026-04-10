@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { login, logout, isAuthenticated, getTokenStatus, getCurrentUser, ensureValidToken, refreshOrganizations, type CurrentUser } from '@ace-sdk/core';
 import { invalidateClient } from '../services/aceClient';
+import { notifyAuthChanged } from '../extension';
 
 // Re-export SDK auth functions for use in other modules
 export { isAuthenticated, getCurrentUser };
@@ -68,8 +69,9 @@ export async function handleLogin(): Promise<CurrentUser | null> {
                 }
             }
 
-            // Invalidate client cache to pick up new auth
+            // Invalidate client cache and notify UI to pick up new auth
             invalidateClient();
+            notifyAuthChanged();
 
             return currentUser;
         } catch (error) {
@@ -104,6 +106,7 @@ export async function handleLogout(): Promise<void> {
     if (confirm === 'Logout') {
         logout();
         invalidateClient();
+        notifyAuthChanged();
         vscode.window.showInformationMessage('Logged out from ACE');
     }
 }
