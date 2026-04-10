@@ -38,8 +38,8 @@ export const MCP_PROVIDER_LABEL = 'ACE Pattern Learning';
 
 // Agent files version - bump this ONLY when agent file CONTENT changes
 // This is separate from extension version - only triggers update popup when agent files have new content
-// Current: 0.4.32 (MCP server + handoff buttons for enforcement)
-export const AGENT_FILES_VERSION = '0.4.32';
+// Current: 0.4.33 (chatSkills, tool annotations, global hooks for ace_search/ace_learn enforcement)
+export const AGENT_FILES_VERSION = '0.4.33';
 
 // Global config path (XDG standard, same as @ace-sdk/core)
 export const getGlobalConfigPath = (): string => {

@@ -249,6 +249,7 @@ export async function handleUpdateAgents(silent: boolean = false, folder?: vscod
     const instructionsDir = path.join(githubDir, 'instructions');
     const skillsDir = path.join(githubDir, 'skills', 'ace-pattern-learning');
     const agentsDir = path.join(githubDir, 'agents');
+    const hooksDir = path.join(githubDir, 'hooks');
 
     try {
         // Migrate legacy copilot-instructions.md if needed
@@ -270,6 +271,9 @@ export async function handleUpdateAgents(silent: boolean = false, folder?: vscod
         if (!fs.existsSync(agentsDir)) {
             fs.mkdirSync(agentsDir, { recursive: true });
         }
+        if (!fs.existsSync(hooksDir)) {
+            fs.mkdirSync(hooksDir, { recursive: true });
+        }
 
         // NEW: Create .github/instructions/ace.instructions.md (path-specific, won't overwrite user content)
         const aceInstructionsPath = path.join(instructionsDir, 'ace.instructions.md');
@@ -286,6 +290,10 @@ export async function handleUpdateAgents(silent: boolean = false, folder?: vscod
         // Create/update ACE Learn agent
         const learnAgentPath = path.join(agentsDir, 'ace-learn.agent.md');
         fs.writeFileSync(learnAgentPath, getAceLearnAgentContent());
+
+        // Create/update global hooks (fires for ALL agents, not just ace-expert)
+        const hooksPath = path.join(hooksDir, 'ace-hooks.json');
+        fs.writeFileSync(hooksPath, getAceHooksContent());
 
         // Write version file
         writeVersionFile(workspaceRoot, AGENT_FILES_VERSION);
@@ -339,13 +347,17 @@ When request contains: **implement, build, create, fix, debug, refactor, integra
 Provide:
 - \`task\`: Brief description of what was accomplished
 - \`success\`: true/false
-- \`output\`: Key lessons, patterns discovered, gotchas
+- \`output\`: Start with \`TIME_SAVED: Xm | reason\`, then key lessons, patterns discovered, gotchas
 
-### DURING Conversation (Topic Changes)
-When the conversation topic shifts significantly:
-- New domain mentioned (auth → caching, frontend → backend, etc.)
-- User asks about something not covered by previous search
-- Error/issue in different area than original task
+**FAILURE TO CALL ace_learn = INCOMPLETE TASK**
+
+### DURING Conversation (Topic Changes / Continuous Re-Search)
+Call \`#ce-dot-net.ace-vscode/ace_search\` AGAIN when:
+- **Topic shift**: New domain mentioned (auth → caching, frontend → backend, etc.)
+- **Extended work**: After 5+ tool calls without re-searching
+- **Errors**: Hitting errors in a different area than original task
+- **New context**: Switching file types or directories
+- **Task shift**: User asks about something not covered by previous search
 
 **INVOKE**: \`#ce-dot-net.ace-vscode/ace_search\` with NEW topic query BEFORE continuing.
 
@@ -468,7 +480,7 @@ function getAceAgentContent(): string {
 name: ace-expert
 description: Pattern-enhanced coding with automatic ACE tool invocation
 target: vscode
-user-invokable: true
+user-invocable: true
 tools:
   - ce-dot-net.ace-vscode/ace_search
   - ce-dot-net.ace-vscode/ace_learn
@@ -478,6 +490,15 @@ tools:
   - read/readFile
   - edit/editFiles
   - read/problems
+hooks:
+  SessionStart:
+    - type: command
+      command: "echo '{\\"hookSpecificOutput\\":{\\"hookEventName\\":\\"SessionStart\\",\\"additionalContext\\":\\"ACE Pattern Learning is active. BEFORE starting any coding task, invoke ace_search to find relevant patterns. AFTER completing work, invoke ace_learn to capture learnings.\\"}}'"
+      timeout: 5
+  Stop:
+    - type: command
+      command: "echo '{\\"hookSpecificOutput\\":{\\"hookEventName\\":\\"Stop\\",\\"decision\\":\\"block\\",\\"reason\\":\\"Before ending: Have you captured your learnings? If you completed substantial work, invoke ace_learn to save patterns for the team.\\"}}'"
+      timeout: 5
 ---
 
 # ACE Expert Agent
@@ -536,6 +557,43 @@ User: "Now work on the UI"
 \`\`\`
 
 `;
+}
+
+/**
+ * Global hooks that fire for ALL agents and chat sessions.
+ * Location: .github/hooks/ace-hooks.json
+ * Requires: chat.hooks.enabled setting (Preview, VS Code 1.109+)
+ *
+ * - SessionStart: injects additionalContext telling model to call ace_search
+ * - Stop: blocks session end until ace_learn is called (checks stop_hook_active to prevent loops)
+ */
+function getAceHooksContent(): string {
+    const hooks = {
+        hooks: {
+            SessionStart: [
+                {
+                    type: 'command',
+                    command: `echo '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"ACE Pattern Learning is active.\\n\\n## MANDATORY WORKFLOW\\n1. BEFORE any coding task: call ace_search with a relevant query\\n2. AFTER completing work: call ace_learn with task summary, success, and output (start output with TIME_SAVED: Xm | reason)\\n\\n## CONTINUOUS RE-SEARCH (Domain Shift Detection)\\nCall ace_search AGAIN when:\\n- Topic shifts (auth → caching, API → database, frontend → backend)\\n- After 5+ tool calls without re-searching\\n- When hitting errors in a different area\\n- When user asks about a new domain\\n- When switching file types or directories\\n\\nFAILURE TO CALL ace_search = INCOMPLETE TASK"}}'`,
+                    timeout: 5
+                }
+            ],
+            PostToolUse: [
+                {
+                    type: 'command',
+                    command: `bash -c 'INPUT=$(cat); TOOL=$(echo "$INPUT" | jq -r ".tool_name // \\"\\""); case "$TOOL" in *edit*|*write*|*create*|*replace*) FILE=$(echo "$INPUT" | jq -r ".tool_input.file_path // .tool_input.filePath // .tool_input.path // \\"\\"" 2>/dev/null); if [ -n "$FILE" ]; then DIR=$(dirname "$FILE" | sed "s|.*/src/||" | cut -d/ -f1); LAST_DIR=$(cat /tmp/ace-last-dir-$$ 2>/dev/null); echo "$DIR" > /tmp/ace-last-dir-$$; if [ -n "$LAST_DIR" ] && [ "$DIR" != "$LAST_DIR" ]; then echo "{\\"hookSpecificOutput\\":{\\"hookEventName\\":\\"PostToolUse\\",\\"additionalContext\\":\\"[ACE Domain Shift] You moved from $LAST_DIR/ to $DIR/. Consider calling ace_search with a query relevant to $DIR before continuing.\\"}}"; exit 0; fi; fi;; esac; exit 0'`,
+                    timeout: 5
+                }
+            ],
+            Stop: [
+                {
+                    type: 'command',
+                    command: `bash -c 'INPUT=$(cat); ACTIVE=$(echo "$INPUT" | jq -r ".stop_hook_active // false"); if [ "$ACTIVE" = "true" ]; then exit 0; fi; TRANSCRIPT=$(echo "$INPUT" | jq -r ".transcript_path // \\"\\""); if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then if grep -q "ace_learn" "$TRANSCRIPT" 2>/dev/null; then exit 0; fi; fi; LAST=$(echo "$INPUT" | jq -r ".last_assistant_message // \\"\\""); if echo "$LAST" | grep -qi "ace_learn\\|captured learning\\|pattern recorded\\|pattern saved\\|learning captured"; then exit 0; fi; echo "{\\"hookSpecificOutput\\":{\\"hookEventName\\":\\"Stop\\",\\"decision\\":\\"block\\",\\"reason\\":\\"You have not captured learnings yet. Call ace_learn with: task (what was done), success (true/false), output (start with TIME_SAVED: Xm | reason, then lessons learned).\\"}}"'`,
+                    timeout: 5
+                }
+            ]
+        }
+    };
+    return JSON.stringify(hooks, null, 2) + '\n';
 }
 
 function getAceLearnAgentContent(): string {

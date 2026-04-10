@@ -16,10 +16,11 @@ webpack.config.js
 .gitignore
 .eslintrc.json
 
-# Documentation (except README/CHANGELOG)
+# Documentation (except README/CHANGELOG and skills)
 *.md
 !README.md
 !CHANGELOG.md
+!skills/**/*.md
 
 # Test files
 test/**

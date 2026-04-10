@@ -63,6 +63,7 @@ export class AceMcpServerProvider implements vscode.McpServerDefinitionProvider 
             ACE_SERVER_URL: projectConfig.serverUrl,
             ACE_PROJECT_ID: projectConfig.projectId,
             ACE_ORG_ID: projectConfig.orgId,
+            ACE_CLIENT_ID: 'copilot',
         };
 
         // Pass token explicitly (also available via config file,

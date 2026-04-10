@@ -12,13 +12,15 @@ By [Code Engine GmbH](https://ace-ai.app)
 
 ## Features
 
-- 🤖 **@ace Chat Participant** - Ask Copilot to search patterns, capture learning, and more
-- 🔧 **Language Model Tools** - `ace_search`, `ace_learn`, `ace_status`, `ace_get_playbook`
+- 🔄 **Automatic Enforcement** - ace_search runs before every task, ace_learn enforced at session end (via global hooks)
+- 🤖 **Works with ALL agents** - Not limited to ace-expert; hooks + skills fire for Copilot, Claude, CLI agents
+- 🔧 **Language Model Tools** - `ace_search`, `ace_learn`, `ace_status`, `ace_get_playbook` (auto-approved for search)
 - 🔐 **Browser-based login** - Secure device code authentication (no API tokens to copy)
+- 🧭 **Domain shift detection** - Automatically suggests re-search when you switch code areas
 - 📁 **Multi-Root Workspace Support** - Each folder gets its own ACE configuration
 - 📊 **Status Panel** - Real-time playbook statistics with session expiry info
 - ⚙️ **Configure Panel** - Easy server and project setup with login support
-- 🤖 **Agent Files** - Generate `.github/agents/` for CI/CD AI assistants
+- 🤖 **Agent Files + Hooks** - Auto-generates `.github/agents/`, `.github/hooks/`, skills, and instructions
 
 ## Quick Start
 
@@ -49,16 +51,22 @@ By [Code Engine GmbH](https://ace-ai.app)
 
 ## Using ACE with Copilot
 
-### Agent Mode (Recommended)
+### Automatic Mode (v0.4.33+ — Recommended)
 
-For **automatic pattern retrieval** before tasks, select the **ace-expert** agent in Copilot Chat:
+ACE now enforces the search/learn cycle **globally** — no need to select a specific agent:
 
-1. Open GitHub Copilot Chat (`Cmd+I` or `Ctrl+I`)
-2. Click the **agent selector** dropdown (top of chat panel)
-3. Select **ace-expert** from the list
-4. Start coding - ACE tools are now available to Copilot automatically!
+1. **Enable hooks**: When prompted on first install, click "Enable Hooks" (or set `chat.hooks.enabled: true`)
+2. **Run** `ACE: Update Agent Files` to generate workspace hooks
+3. **Start coding with any agent** — ACE enforcement is automatic!
 
-When `ace-expert` is selected, Copilot can automatically call `ace_search` before implementing and `ace_learn` after completing work.
+**What happens automatically:**
+- **Session start**: Hook injects context telling the model to call `ace_search` before work
+- **Domain shift**: When you edit files in different directories, hook suggests re-searching
+- **Session end**: Hook blocks until `ace_learn` is called with learnings
+
+### ace-expert Agent (Optional extra enforcement)
+
+For additional enforcement, select **ace-expert** in the agent picker. This adds agent-scoped hooks on top of the global ones.
 
 ### Chat Commands
 
@@ -131,20 +139,26 @@ ACE generates GitHub Copilot agent files for automatic pattern learning. Run `AC
 
 ```
 .github/
-├── instructions/ace.instructions.md  # Path-specific (won't overwrite your copilot-instructions.md)
+├── hooks/ace-hooks.json               # Global hooks (SessionStart, PostToolUse, Stop)
+├── instructions/ace.instructions.md   # Path-specific instructions (applyTo: "**/*")
 ├── skills/ace-pattern-learning/SKILL.md  # Agent Skill for auto-trigger
-├── agents/ace.agent.md  # ace-expert agent (PRIMARY)
-├── agents/ace-learn.agent.md  # Learning capture agent
-└── .ace-version.json  # Version tracking
+├── agents/ace.agent.md                # ace-expert agent (with agent-scoped hooks)
+├── agents/ace-learn.agent.md          # Learning capture agent
+└── .ace-version.json                  # Version tracking
 ```
+
+### Global Hooks (v0.4.33+)
+
+Global hooks fire for **ALL agents** (not just ace-expert):
+- **SessionStart**: Injects "MUST call ace_search" context at session start
+- **PostToolUse**: Detects directory changes and suggests domain-aware re-search
+- **Stop**: Blocks session end until `ace_learn` is called
+
+Requires `chat.hooks.enabled: true` (VS Code 1.109+, Preview).
 
 ### Agent Skills
 
-**Agent Skills** are auto-triggered by Copilot based on your prompt. When you type keywords like "implement", "build", "fix", or "debug", Copilot automatically loads ACE patterns before starting work.
-
-### ace-expert Agent (Recommended)
-
-For **guaranteed** pattern retrieval, select **ace-expert** as your agent in Copilot Chat. This ensures ACE tools are always available.
+**Agent Skills** are auto-triggered by Copilot based on your prompt. Keywords like "implement", "build", "fix", or "debug" automatically load ACE patterns. The skill is also bundled inside the extension VSIX via the `chatSkills` contribution point.
 
 ## Configuration
 
@@ -162,7 +176,7 @@ Configure in VS Code Settings (`Cmd+,`) or `.vscode/settings.json`:
 
 ## Requirements
 
-- VS Code (v1.105.0+)
+- VS Code (v1.115.0+)
 - GitHub Copilot Chat extension
 - ACE account at [ace-ai.app](https://ace-ai.app)
 
