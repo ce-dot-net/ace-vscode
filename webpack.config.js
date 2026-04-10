@@ -32,6 +32,12 @@ const config = {
     new webpack.NormalModuleReplacementPlugin(
       /^skott$/,
       path.resolve(__dirname, 'src/stubs/skott-stub.js')
+    ),
+    // Stub @ace-sdk/core version module - it uses readFileSync with __dirname
+    // which gets baked as the CI build path in the webpack bundle
+    new webpack.NormalModuleReplacementPlugin(
+      /@ace-sdk\/core\/dist\/version/,
+      path.resolve(__dirname, 'src/stubs/ace-version-stub.js')
     )
   ],
   resolve: {
