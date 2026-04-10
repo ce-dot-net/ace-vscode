@@ -223,3 +223,54 @@ suite('ACE Configuration Settings Tests', () => {
         assert.ok(props['ace.automation.showStatusBar'], 'Should have showStatusBar setting');
     });
 });
+
+suite('ACE v0.5.0 Package Manifest', () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const packageJson = require('../../../package.json');
+
+    test('configurationDefaults sets chat.hooks.enabled to true', () => {
+        const defaults = packageJson.contributes?.configurationDefaults;
+        assert.ok(defaults, 'configurationDefaults should exist');
+        assert.strictEqual(defaults['chat.hooks.enabled'], true);
+    });
+
+    test('walkthrough is defined with correct steps', () => {
+        const walkthroughs = packageJson.contributes?.walkthroughs;
+        assert.ok(walkthroughs, 'walkthroughs should exist');
+        assert.ok(walkthroughs.length > 0, 'should have at least one walkthrough');
+        const walkthrough = walkthroughs[0];
+        assert.strictEqual(walkthrough.id, 'ace-getting-started');
+        assert.ok(walkthrough.steps.length >= 3, 'should have at least 3 steps');
+    });
+
+    test('walkthrough first step is ace-login', () => {
+        const walkthroughs = packageJson.contributes?.walkthroughs;
+        assert.ok(walkthroughs?.length > 0, 'walkthroughs should exist');
+        const firstStep = walkthroughs[0].steps[0];
+        assert.strictEqual(firstStep.id, 'ace-login', 'First step should be ace-login');
+    });
+
+    test('walkthrough steps include ace-configure', () => {
+        const walkthroughs = packageJson.contributes?.walkthroughs;
+        assert.ok(walkthroughs?.length > 0, 'walkthroughs should exist');
+        const steps: Array<{ id: string }> = walkthroughs[0].steps;
+        const found = steps.find(s => s.id === 'ace-configure');
+        assert.ok(found, 'Should have ace-configure step');
+    });
+
+    test('walkthrough steps include ace-update-agents', () => {
+        const walkthroughs = packageJson.contributes?.walkthroughs;
+        assert.ok(walkthroughs?.length > 0, 'walkthroughs should exist');
+        const steps: Array<{ id: string }> = walkthroughs[0].steps;
+        const found = steps.find(s => s.id === 'ace-update-agents');
+        assert.ok(found, 'Should have ace-update-agents step');
+    });
+
+    test('walkthrough has title and description', () => {
+        const walkthroughs = packageJson.contributes?.walkthroughs;
+        assert.ok(walkthroughs?.length > 0, 'walkthroughs should exist');
+        const walkthrough = walkthroughs[0];
+        assert.ok(walkthrough.title, 'Walkthrough should have a title');
+        assert.ok(walkthrough.description, 'Walkthrough should have a description');
+    });
+});

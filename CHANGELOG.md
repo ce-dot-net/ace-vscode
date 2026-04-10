@@ -5,6 +5,22 @@ All notable changes to ACE for VSCode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-04-10
+
+### Added
+- **Zero-friction hooks setup** — `configurationDefaults` sets `chat.hooks.enabled: true` automatically on install
+- **Getting Started walkthrough** — 4-step onboarding: Sign In → Configure → Install Agents → First Search
+  - Opens automatically on first install via `globalState` version detection
+  - Steps auto-complete as user performs each action
+- **Self-healing managed files** — `FileSystemWatcher` monitors `.github/` for deletions
+  - If ace-hooks.json or agent files are deleted, prompts user to recreate
+- **File decorations** — Green "A" badge on ACE-managed files in Explorer
+  - Applies to: ace-hooks.json, ace.agent.md, ace-learn.agent.md, ace.instructions.md, SKILL.md
+- **Extension version detection** — Uses `globalState` to detect first install vs update
+  - First install: opens walkthrough
+  - Update: shows status bar notification
+- **39 new tests** — FileDecorations (13), FileWatcher (15), Package manifest (6), plus fixes
+
 ## [0.4.33] - 2026-04-10
 
 ### Added

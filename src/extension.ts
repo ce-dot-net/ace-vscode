@@ -9,6 +9,8 @@ import { invalidateClient } from './services/aceClient';
 import { checkAgentFilesUpdate } from './commands/updateAgents';
 import { AceMcpServerProvider } from './mcp';
 import { MCP_PROVIDER_ID } from './constants';
+import { activateFileWatcher } from './automation/fileWatcher';
+import { AceFileDecorationProvider } from './ui/fileDecorations';
 
 /**
  * Extension activation
@@ -72,6 +74,24 @@ export function activate(context: vscode.ExtensionContext): void {
         console.error('ACE: Failed to activate automation:', error);
     }
 
+    // Activate file watcher for self-healing managed files
+    try {
+        activateFileWatcher(context);
+        console.log('ACE: File watcher activated');
+    } catch (error) {
+        console.error('ACE: Failed to activate file watcher:', error);
+    }
+
+    // Register file decoration provider for ACE managed files
+    try {
+        context.subscriptions.push(
+            vscode.window.registerFileDecorationProvider(new AceFileDecorationProvider())
+        );
+        console.log('ACE: File decorations registered');
+    } catch (error) {
+        console.error('ACE: Failed to register file decorations:', error);
+    }
+
     try {
         // Activate UI components (status bar)
         console.log('ACE: Activating UI...');
@@ -79,6 +99,37 @@ export function activate(context: vscode.ExtensionContext): void {
         console.log('ACE: UI activated');
     } catch (error) {
         console.error('ACE: Failed to activate UI:', error);
+    }
+
+    // Detect extension install/update via globalState
+    try {
+        const currentVersion = context.extension.packageJSON.version;
+        const previousVersion = context.globalState.get<string>('ace.extensionVersion');
+        context.globalState.setKeysForSync(['ace.extensionVersion']);
+
+        if (!previousVersion) {
+            // First install — open walkthrough
+            console.log('ACE: First install detected, opening walkthrough');
+            context.globalState.update('ace.extensionVersion', currentVersion);
+            // Delay to let extension fully activate first
+            setTimeout(() => {
+                vscode.commands.executeCommand(
+                    'workbench.action.openWalkthrough',
+                    'ce-dot-net.ace-vscode#ace-getting-started',
+                    false
+                );
+            }, 2000);
+        } else if (previousVersion !== currentVersion) {
+            // Extension updated
+            console.log(`ACE: Updated from ${previousVersion} to ${currentVersion}`);
+            context.globalState.update('ace.extensionVersion', currentVersion);
+            vscode.window.setStatusBarMessage(
+                `ACE updated to v${currentVersion}`,
+                5000
+            );
+        }
+    } catch (error) {
+        console.error('ACE: Failed to check extension version:', error);
     }
 
     // Check if agent files need creation or update (smart prompts)
@@ -153,27 +204,21 @@ function registerAceTools(context: vscode.ExtensionContext): void {
 }
 
 /**
- * Checks if chat hooks are enabled and prompts user if not.
- * Hooks are required for ace_search/ace_learn enforcement via .github/hooks/ace-hooks.json.
- * Only prompts once per workspace (tracked via workspace state).
+ * Checks if chat hooks are enabled and warns if user explicitly disabled them.
+ * Since we set configurationDefaults for chat.hooks.enabled=true, hooks work out of the box.
+ * Only warns if the user has explicitly set hooks to false (not on first install).
  */
 function checkHooksEnabled(): void {
     const config = vscode.workspace.getConfiguration('chat');
-    const hooksEnabled = config.get<boolean>('hooks.enabled', false);
-
-    if (!hooksEnabled) {
-        // Check if we already prompted in this workspace
-        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.toString();
-        if (!workspaceRoot) return;
-
-        vscode.window.showInformationMessage(
-            'ACE: Enable chat hooks for automatic pattern search/learn enforcement?',
-            'Enable Hooks',
-            'Not Now'
+    const hooksInspect = config.inspect<boolean>('hooks.enabled');
+    // Only warn if user explicitly set it to false (not if it's just the default)
+    if (hooksInspect?.workspaceValue === false || hooksInspect?.globalValue === false) {
+        vscode.window.showWarningMessage(
+            'ACE: Chat hooks are disabled. ACE enforcement requires hooks to be enabled.',
+            'Enable Hooks'
         ).then(selection => {
             if (selection === 'Enable Hooks') {
                 config.update('hooks.enabled', true, vscode.ConfigurationTarget.Workspace);
-                vscode.window.showInformationMessage('ACE: Chat hooks enabled! ace_search will run at session start, ace_learn enforced at session end.');
             }
         });
     }

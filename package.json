@@ -2,7 +2,7 @@
   "name": "ace-vscode",
   "displayName": "ACE for GitHub Copilot",
   "description": "Pattern learning and retrieval for GitHub Copilot - captures what works, retrieves it when needed",
-  "version": "0.4.33",
+  "version": "0.5.0",
   "publisher": "ce-dot-net",
   "license": "MIT",
   "repository": {
@@ -265,6 +265,46 @@
       {
         "command": "ace-vscode.logout",
         "title": "ACE: Logout"
+      }
+    ],
+    "configurationDefaults": {
+      "chat.hooks.enabled": true
+    },
+    "walkthroughs": [
+      {
+        "id": "ace-getting-started",
+        "title": "Get Started with ACE",
+        "description": "Set up ACE Pattern Learning for your project",
+        "steps": [
+          {
+            "id": "ace-login",
+            "title": "Sign In to ACE",
+            "description": "Connect your ACE account to start using pattern learning.\n\n[Sign In](command:ace-vscode.login)",
+            "media": { "markdown": "skills/ace-pattern-learning/SKILL.md" },
+            "completionEvents": ["onCommand:ace-vscode.login"]
+          },
+          {
+            "id": "ace-configure",
+            "title": "Configure Your Project",
+            "description": "Select your organization and project.\n\n[Configure Project](command:ace-vscode.configure)",
+            "media": { "markdown": "skills/ace-pattern-learning/SKILL.md" },
+            "completionEvents": ["onCommand:ace-vscode.configure"]
+          },
+          {
+            "id": "ace-update-agents",
+            "title": "Install Agent Files",
+            "description": "Deploy hooks, skills, and agent files to your workspace.\n\n[Install Agent Files](command:ace-vscode.updateAgents)",
+            "media": { "markdown": "skills/ace-pattern-learning/SKILL.md" },
+            "completionEvents": ["onCommand:ace-vscode.updateAgents"]
+          },
+          {
+            "id": "ace-first-search",
+            "title": "Try Your First Search",
+            "description": "Open Copilot Chat and ask it to search for patterns.\n\nType in Copilot Chat: `@ace /search authentication`",
+            "media": { "markdown": "skills/ace-pattern-learning/SKILL.md" },
+            "completionEvents": ["onCommand:ace-vscode.ace.search"]
+          }
+        ]
       }
     ],
     "configuration": {
