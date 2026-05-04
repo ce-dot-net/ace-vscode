@@ -2,7 +2,7 @@
   "name": "ace-vscode",
   "displayName": "ACE for GitHub Copilot",
   "description": "Pattern learning and retrieval for GitHub Copilot - captures what works, retrieves it when needed",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "publisher": "ce-dot-net",
   "license": "MIT",
   "homepage": "https://github.com/ce-dot-net/ace-vscode#readme",

@@ -5,6 +5,11 @@ All notable changes to ACE for VSCode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-04-30
+
+### Fixed
+- **Stop hook portability** — The Linux+macOS shell hook used BSD `stat -f` first then GNU `stat -c` as fallback. On Linux, `stat -f` exists but means *filesystem stats* (different semantics) and silently produced garbage instead of empty output, so the GNU fallback never ran and the most-recent-debug-log lookup failed. Replaced the dual-stat dance with portable `find -print0 | xargs -0 ls -t | head -n1`, which sorts by mtime correctly on both macOS and Linux. This unbreaks `Scenario A` of `stopHook.test.ts` in CI.
+
 ## [0.6.0] - 2026-04-30
 
 ### Added
