@@ -5,6 +5,11 @@ All notable changes to ACE for VSCode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.3] - 2026-04-30
+
+### Fixed
+- **Status panel polled wrong endpoint** — `src/ui/statusPanel.ts` issued `GET /top?limit=5&min_helpful=1` once per minute against the ACE API server, returning HTTP 404 every time (correct path is `/patterns/top`). Visible in server access logs as `node` user-agent, exact `:55` second alignment per minute (anchored to whenever the panel was first opened). Fixed by correcting the path. The SDK already exposes this via `client.getTopPatterns()`; statusPanel still uses a raw fetch for header parity with the adjacent `/analytics` call but now hits the correct route.
+
 ## [0.6.2] - 2026-04-30
 
 ### Fixed

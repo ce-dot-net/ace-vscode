@@ -200,7 +200,7 @@ export class StatusPanel {
         // Fetch top patterns
         let topPatterns: TopPattern[] = [];
         try {
-            const topResponse = await fetch(`${serverUrl}/top?limit=5&min_helpful=1`, {
+            const topResponse = await fetch(`${serverUrl}/patterns/top?limit=5&min_helpful=1`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
