@@ -5,6 +5,11 @@ All notable changes to ACE for VSCode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2026-04-30
+
+### Fixed
+- **README lockup invisible on Marketplace dark theme** — Shipped the *light* lockup variant (`05_logo_lockup_1200.png` — dark wordmark on transparent background) instead of the *dark* variant. On the Marketplace's dark page background the wordmark disappeared and only mint highlights remained as broken fragments. Swapped `resources/ace-lockup.png` to `06_logo_lockup_dark.png` (1200×330, solid `#0F0F12` background, theme-agnostic).
+
 ## [0.6.1] - 2026-04-30
 
 ### Fixed
