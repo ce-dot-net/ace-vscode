@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"ACE Pattern Learning is active.\\n\\n## MANDATORY WORKFLOW\\n1. BEFORE any coding task: call ace_search with a relevant query\\n2. AFTER completing work: call ace_learn with task summary, success, and output (start output with TIME_SAVED: Xm | reason)\\n\\n## CONTINUOUS RE-SEARCH (Domain Shift Detection)\\nCall ace_search AGAIN when:\\n- Topic shifts (auth → caching, API → database, frontend → backend)\\n- After 5+ tool calls without re-searching\\n- When hitting errors in a different area\\n- When user asks about a new domain\\n- When switching file types or directories\\n\\nFAILURE TO CALL ace_search = INCOMPLETE TASK\"}}'",
+        "timeout": 5
+      }
+    ],
+    "PostToolUse": [
+      {
+        "type": "command",
+        "command": "bash -c 'INPUT=$(cat); TOOL=$(echo \"$INPUT\" | jq -r \".tool_name // \\\"\\\"\"); case \"$TOOL\" in *edit*|*write*|*create*|*replace*) FILE=$(echo \"$INPUT\" | jq -r \".tool_input.file_path // .tool_input.filePath // .tool_input.path // \\\"\\\"\" 2>/dev/null); if [ -n \"$FILE\" ]; then DIR=$(dirname \"$FILE\" | sed \"s|.*/src/||\" | cut -d/ -f1); LAST_DIR=$(cat /tmp/ace-last-dir-$$ 2>/dev/null); echo \"$DIR\" > /tmp/ace-last-dir-$$; if [ -n \"$LAST_DIR\" ] && [ \"$DIR\" != \"$LAST_DIR\" ]; then echo \"{\\\"hookSpecificOutput\\\":{\\\"hookEventName\\\":\\\"PostToolUse\\\",\\\"additionalContext\\\":\\\"[ACE Domain Shift] You moved from $LAST_DIR/ to $DIR/. Consider calling ace_search with a query relevant to $DIR before continuing.\\\"}}\"; exit 0; fi; fi;; esac; exit 0'",
+        "timeout": 5
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "bash -c 'INPUT=$(cat); ACTIVE=$(echo \"$INPUT\" | jq -r \".stop_hook_active // false\" 2>/dev/null); if [ \"$ACTIVE\" = \"true\" ]; then exit 0; fi; SID=$(echo \"$INPUT\" | jq -r \".session_id // \\\"\\\"\" 2>/dev/null); DLOG=\"\"; for ROOT in \"$HOME/Library/Application Support/Code/logs\" \"$HOME/.config/Code/logs\"; do if [ -d \"$ROOT\" ]; then C=$(find \"$ROOT\" -name agentDebug.log -type f 2>/dev/null | xargs -I{} stat -f \"%m %N\" {} 2>/dev/null | sort -rn | head -n1 | cut -d\" \" -f2-); [ -z \"$C\" ] && C=$(find \"$ROOT\" -name agentDebug.log -type f 2>/dev/null | xargs -I{} stat -c \"%Y %n\" {} 2>/dev/null | sort -rn | head -n1 | cut -d\" \" -f2-); if [ -n \"$C\" ] && [ -f \"$C\" ]; then DLOG=\"$C\"; break; fi; fi; done; if [ -n \"$DLOG\" ] && [ -f \"$DLOG\" ]; then if [ -n \"$SID\" ] && grep \"ace_learn\" \"$DLOG\" 2>/dev/null | grep -qF \"$SID\"; then exit 0; fi; if tail -n 2000 \"$DLOG\" 2>/dev/null | grep -qE \"\\\"(name|tool[_-]?name)\\\"[[:space:]]*:[[:space:]]*\\\"[^\\\"]*ace_learn\"; then exit 0; fi; fi; TRANSCRIPT=$(echo \"$INPUT\" | jq -r \".transcript_path // \\\"\\\"\" 2>/dev/null); if [ -n \"$TRANSCRIPT\" ] && [ -f \"$TRANSCRIPT\" ]; then if grep -q \"ace_learn\" \"$TRANSCRIPT\" 2>/dev/null; then exit 0; fi; fi; LAST=$(echo \"$INPUT\" | jq -r \".last_assistant_message // \\\"\\\"\" 2>/dev/null); if echo \"$LAST\" | grep -qi \"ace_learn\\|captured learning\\|pattern recorded\\|pattern saved\\|learning captured\"; then exit 0; fi; echo \"{\\\"hookSpecificOutput\\\":{\\\"hookEventName\\\":\\\"Stop\\\",\\\"decision\\\":\\\"block\\\",\\\"reason\\\":\\\"You have not captured learnings yet. Call ace_learn with: task (what was done), success (true/false), output (start with TIME_SAVED: Xm | reason, then lessons learned).\\\"}}\"'",
+        "timeout": 5
+      }
+    ]
+  }
+}

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="resources/ace-lockup.png" alt="ACE — Automatic Context Engine" width="600">
+</p>
+
 # ACE for VS Code
 
 > 🔐 **Account Required** - This extension requires an ACE account to work.

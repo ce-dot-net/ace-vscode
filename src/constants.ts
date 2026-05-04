@@ -34,6 +34,7 @@ export const DEFAULT_SERVER_URL = 'https://ace-api.code-engine.app';
 
 // MCP Server provider
 export const MCP_PROVIDER_ID = 'ace-mcp-provider';
+// Keep unique to avoid collision with user .mcp.json entries (1.118 dedup).
 export const MCP_PROVIDER_LABEL = 'ACE Pattern Learning';
 
 // Agent files version - bump this ONLY when agent file CONTENT changes

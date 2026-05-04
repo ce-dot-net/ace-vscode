@@ -13,24 +13,41 @@ interface AceLearnInput {
     output?: string;
 }
 
+type ClientProvider = () => ReturnType<typeof getAceClient>;
+
+function skipResult(reason: string): vscode.LanguageModelToolResult {
+    return new vscode.LanguageModelToolResult([
+        new vscode.LanguageModelTextPart(`⏭️ **[ACE] Learn skipped:** ${reason}`)
+    ]);
+}
+
 /**
  * ACE Learn Tool - Captures patterns from completed work
  * Uses streaming endpoint (/traces/stream) for real-time progress
  * Returns verbose formatted output with learning statistics
  */
 export class AceLearnTool implements vscode.LanguageModelTool<AceLearnInput> {
+    constructor(private readonly clientProvider: ClientProvider = getAceClient) {}
+
     async invoke(
         options: vscode.LanguageModelToolInvocationOptions<AceLearnInput>,
-        _token: vscode.CancellationToken
+        token: vscode.CancellationToken
     ): Promise<vscode.LanguageModelToolResult> {
+        if (token.isCancellationRequested) {
+            return skipResult('cancelled before invocation');
+        }
+
         const { task, success = true, output: taskOutput } = options.input;
-        const client = getAceClient();
+        const client = this.clientProvider();
 
         if (!client) {
             return new vscode.LanguageModelToolResult([
                 new vscode.LanguageModelTextPart('❌ **[ACE] Not configured.** Run "ACE: Configure" first.')
             ]);
         }
+
+        let cancelled = false;
+        const cancelSub = token.onCancellationRequested(() => { cancelled = true; });
 
         try {
             // Retrieve playbook_used from session (populated by ace_search)
@@ -49,9 +66,10 @@ export class AceLearnTool implements vscode.LanguageModelTool<AceLearnInput> {
             // Use streaming endpoint for real-time progress
             const result = await client.storeExecutionTraceStream(trace, {
                 onEvent: (event: LearningStreamEvent) => {
+                    if (cancelled) return;
                     console.log(`[ACE Learn] ${event.stage}: ${event.message || ''}`);
                 },
-                fallbackOnError: true, // Falls back to /traces if SSE fails
+                fallbackOnError: true,
                 verbosity: 'compact'
             });
 
@@ -114,6 +132,8 @@ export class AceLearnTool implements vscode.LanguageModelTool<AceLearnInput> {
             return new vscode.LanguageModelToolResult([
                 new vscode.LanguageModelTextPart(`❌ **[ACE] Learn failed:** ${message}`)
             ]);
+        } finally {
+            cancelSub.dispose();
         }
     }
 }

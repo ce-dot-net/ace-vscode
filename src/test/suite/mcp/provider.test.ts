@@ -1,4 +1,6 @@
 import * as assert from 'assert';
+import * as os from 'os';
+import * as path from 'path';
 import * as sinon from 'sinon';
 import * as vscode from 'vscode';
 
@@ -33,6 +35,14 @@ suite('AceMcpServerProvider', () => {
     teardown(() => {
         sinon.restore();
     });
+
+    // Mirror getGlobalConfigPath() from src/constants.ts so the test stays
+    // hermetic without dragging the ESM SDK chain that constants pulls in.
+    function getGlobalConfigPathLocal(): string {
+        const xdgConfig = process.env.XDG_CONFIG_HOME;
+        const configBase = xdgConfig || path.join(os.homedir(), '.config');
+        return path.join(configBase, 'ace', 'config.json');
+    }
 
     function createProvider() {
         // Use the real class but inject mock deps to avoid ESM issues
@@ -72,14 +82,26 @@ suite('AceMcpServerProvider', () => {
                 if (userAuth?.token) {
                     env.ACE_API_TOKEN = userAuth.token;
                 }
-                return [
-                    new vscode.McpStdioServerDefinition(
-                        MCP_PROVIDER_LABEL,
-                        'npx',
-                        ['--yes', '@ace-sdk/mcp'],
-                        env
-                    )
-                ];
+                const def = new vscode.McpStdioServerDefinition(
+                    MCP_PROVIDER_LABEL,
+                    'npx',
+                    ['--yes', '@ace-sdk/mcp'],
+                    env
+                );
+                // Mirror provider.ts: gated runtime assignment of sandbox perms.
+                if ('sandboxFilePermissions' in def) {
+                    const sandboxPaths = [
+                        getGlobalConfigPathLocal(),
+                        path.join(os.homedir(), '.ace'),
+                    ];
+                    (def as unknown as {
+                        sandboxFilePermissions: { path: string; permissions: string }[];
+                    }).sandboxFilePermissions = sandboxPaths.map(p => ({
+                        path: p,
+                        permissions: 'read',
+                    }));
+                }
+                return [def];
             },
 
             fireChanged(): void {
@@ -324,5 +346,103 @@ suite('AceMcpServerProvider', () => {
         assert.strictEqual(result[0].label, 'ACE Pattern Learning');
 
         provider.dispose();
+    });
+
+    suite('sandboxFilePermissions (VS Code 1.118+)', () => {
+        const FAKE_HOME = '/tmp/fake-home-test';
+        let originalHome: string | undefined;
+        let originalUserProfile: string | undefined;
+
+        setup(() => {
+            // os.homedir is non-configurable in Node 20+, so override via env.
+            // POSIX honors $HOME, Windows honors %USERPROFILE%.
+            delete process.env.XDG_CONFIG_HOME;
+            originalHome = process.env.HOME;
+            originalUserProfile = process.env.USERPROFILE;
+            process.env.HOME = FAKE_HOME;
+            process.env.USERPROFILE = FAKE_HOME;
+        });
+
+        teardown(() => {
+            if (originalHome === undefined) { delete process.env.HOME; }
+            else { process.env.HOME = originalHome; }
+            if (originalUserProfile === undefined) { delete process.env.USERPROFILE; }
+            else { process.env.USERPROFILE = originalUserProfile; }
+        });
+
+        test('includes ACE config + legacy ~/.ace paths when API supports it', () => {
+            isAuthenticatedStub.returns(true);
+            getProjectConfigStub.returns(mockProjectConfig);
+            loadUserAuthStub.returns({ token: 'tk' });
+
+            const provider = createProvider();
+            const result = provider.provideMcpServerDefinitions({} as vscode.CancellationToken);
+            const def = result[0];
+
+            // Property may be absent on hosts older than 1.118 — gate the assertion
+            // on runtime presence so the suite stays green across host versions.
+            if ('sandboxFilePermissions' in def) {
+                const perms = (def as unknown as {
+                    sandboxFilePermissions: { path: string; permissions: string }[];
+                }).sandboxFilePermissions;
+
+                assert.ok(Array.isArray(perms), 'sandboxFilePermissions should be an array');
+                assert.strictEqual(perms.length, 2);
+
+                const paths = perms.map(p => p.path).sort();
+                const expected = [
+                    path.join(FAKE_HOME, '.ace'),
+                    path.join(FAKE_HOME, '.config', 'ace', 'config.json'),
+                ].sort();
+                assert.deepStrictEqual(paths, expected);
+
+                // Each entry must declare read permission.
+                for (const entry of perms) {
+                    assert.strictEqual(entry.permissions, 'read');
+                }
+            } else {
+                // Older host: prop must NOT exist on the definition.
+                assert.ok(
+                    !('sandboxFilePermissions' in def),
+                    'pre-1.118 host should not expose sandboxFilePermissions'
+                );
+            }
+
+            provider.dispose();
+        });
+
+        test('honors XDG_CONFIG_HOME for ACE config path', () => {
+            const customXdg = '/tmp/fake-xdg-config';
+            process.env.XDG_CONFIG_HOME = customXdg;
+            try {
+                isAuthenticatedStub.returns(true);
+                getProjectConfigStub.returns(mockProjectConfig);
+                loadUserAuthStub.returns(null);
+
+                const provider = createProvider();
+                const result = provider.provideMcpServerDefinitions({} as vscode.CancellationToken);
+                const def = result[0];
+
+                if ('sandboxFilePermissions' in def) {
+                    const perms = (def as unknown as {
+                        sandboxFilePermissions: { path: string; permissions: string }[];
+                    }).sandboxFilePermissions;
+
+                    const paths = perms.map(p => p.path);
+                    assert.ok(
+                        paths.includes(path.join(customXdg, 'ace', 'config.json')),
+                        'config path should respect XDG_CONFIG_HOME'
+                    );
+                    assert.ok(
+                        paths.includes(path.join(FAKE_HOME, '.ace')),
+                        'legacy ~/.ace path always derived from homedir'
+                    );
+                }
+
+                provider.dispose();
+            } finally {
+                delete process.env.XDG_CONFIG_HOME;
+            }
+        });
     });
 });

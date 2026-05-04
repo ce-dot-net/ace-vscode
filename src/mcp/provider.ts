@@ -1,7 +1,9 @@
+import * as os from 'os';
+import * as path from 'path';
 import * as vscode from 'vscode';
 import { isAuthenticated as sdkIsAuthenticated, loadUserAuth as sdkLoadUserAuth } from '@ace-sdk/core';
 import { getProjectConfig as getProjectConfigImpl, type AceProjectConfig } from '../services/config';
-import { MCP_PROVIDER_LABEL } from '../constants';
+import { MCP_PROVIDER_LABEL, getGlobalConfigPath } from '../constants';
 
 /**
  * Dependencies for testing (constructor injection).
@@ -73,14 +75,27 @@ export class AceMcpServerProvider implements vscode.McpServerDefinitionProvider 
             env.ACE_API_TOKEN = userAuth.token;
         }
 
-        return [
-            new vscode.McpStdioServerDefinition(
-                MCP_PROVIDER_LABEL,
-                'npx',
-                ['--yes', '@ace-sdk/mcp'],
-                env
-            )
-        ];
+        const def = new vscode.McpStdioServerDefinition(
+            MCP_PROVIDER_LABEL,
+            'npx',
+            ['--yes', '@ace-sdk/mcp'],
+            env
+        );
+
+        // VS Code 1.118+ tightens MCP sandbox: $HOME paths denied by default.
+        // Grant read access to ACE config locations so the MCP subprocess
+        // (npx @ace-sdk/mcp) can read ~/.config/ace/config.json + legacy ~/.ace.
+        // Cast: `sandboxFilePermissions` is 1.118-only and not yet declared in
+        // @types/vscode. Gate on `'sandboxFilePermissions' in def` so pre-1.118
+        // hosts (where the property is undeclared) simply skip assignment and
+        // the spawned MCP runs unsandboxed as before.
+        if ('sandboxFilePermissions' in def) {
+            const sandboxPaths = [getGlobalConfigPath(), path.join(os.homedir(), '.ace')];
+            (def as unknown as { sandboxFilePermissions: { path: string; permissions: string }[] })
+                .sandboxFilePermissions = sandboxPaths.map(p => ({ path: p, permissions: 'read' }));
+        }
+
+        return [def];
     }
 
     /**

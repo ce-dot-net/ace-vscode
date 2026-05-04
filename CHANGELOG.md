@@ -5,6 +5,31 @@ All notable changes to ACE for VSCode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-04-30
+
+### Added
+- **VS Code 1.118 cycle integration** — extension now exploits four 1.116–1.118 surfaces to make the search/learn cycle stronger:
+  - `context: fork` in `SKILL.md` frontmatter — skill runs in dedicated subagent context (1.118), pattern injection no longer pollutes main chat.
+  - `vscode.window.onDidEndTerminalShellExecution` subscription (`src/automation/terminalWatcher.ts`) — nudges `ace_search` after successful build/test commands. Anchored regex + 60s cooldown to prevent spam.
+  - `McpStdioServerDefinition.sandboxFilePermissions` (1.118) — ACE MCP can read `~/.config/ace/config.json` + `~/.ace/` under the new MCP sandbox defaults. Runtime-gated for back-compat.
+  - `CancellationToken` wired into `AceLearnTool` — pre-invoke guard skips silently; late cancellation reports truthfully if the trace already committed.
+- **Stop-hook upgraded** — `.github/hooks/ace-hooks.json` now parses the Copilot Agent Debug Log (1.116, `github.copilot.chat.agentDebugLog.fileLogging.enabled`) with session-id anchor as the primary `ace_learn` signal; falls back to transcript grep + last-assistant grep if log absent.
+- **Tool confirmation polish (1.116 carousel)** — `confirmationMessages` added to `ace_search` and `ace_learn` so each carousel card has a clear title + one-sentence body.
+- **Brand refresh** — new icon (256×256 Retina PNG) + README lockup banner; `galleryBanner` set to brand-black `#0F0F12` with `dark` theme. Logo files in `resources/`.
+- **Marketplace metadata** — added `homepage` and `bugs.url` so the Resources rail on the listing populates properly.
+- **New test suites** — `aceLearn.test.ts` (cancellation), `terminalWatcher.test.ts`, `stopHook.test.ts` (debug-log + fallback scenarios), `tools.manifest.test.ts` + golden fixture (cache-stability snapshot).
+
+### Changed
+- **Engine bumped to ^1.118.0** (from ^1.115.0). **Drops support for VS Code < 1.118** — users on older builds will not see the extension on the Marketplace.
+- **`@types/vscode` ^1.118.0**.
+- `ace_search` displayName: `"ACE Pattern Search"` → `"Search Patterns"` (carousel-friendly).
+- `ace_learn` displayName: `"ACE Learn"` → `"Capture Learning"` (action-oriented).
+- `aceLearn`: removed the post-await skip-result. If `storeExecutionTraceStream` resolved, the trace landed — late cancellation now reports the captured learning truthfully instead of lying with a "skipped" marker.
+- `MCP_PROVIDER_LABEL` JSDoc trimmed to a single-line note about workspace `.mcp.json` collision risk.
+
+### Fixed
+- `terminalWatcher` regex was unanchored — would match commands like `npm runs-fine.sh` or `cmake`. Now anchored at start-of-line with word boundaries; added 60s cooldown so two `npm test` invocations within a minute don't double-fire the nudge.
+
 ## [0.5.3] - 2026-04-10
 
 ### Changed

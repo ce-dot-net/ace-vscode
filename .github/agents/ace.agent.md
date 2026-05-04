@@ -2,7 +2,7 @@
 name: ace-expert
 description: Pattern-enhanced coding with automatic ACE tool invocation
 target: vscode
-user-invokable: true
+user-invocable: true
 tools:
   - ce-dot-net.ace-vscode/ace_search
   - ce-dot-net.ace-vscode/ace_learn
@@ -12,11 +12,15 @@ tools:
   - read/readFile
   - edit/editFiles
   - read/problems
-handoffs:
-  - label: Capture Learning
-    agent: ace-learn
-    prompt: Capture what was learned from the implementation above.
-    send: false
+hooks:
+  SessionStart:
+    - type: command
+      command: "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"ACE Pattern Learning is active. BEFORE starting any coding task, invoke ace_search to find relevant patterns. AFTER completing work, invoke ace_learn to capture learnings.\"}}'"
+      timeout: 5
+  Stop:
+    - type: command
+      command: "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"Stop\",\"decision\":\"block\",\"reason\":\"Before ending: Have you captured your learnings? If you completed substantial work, invoke ace_learn to save patterns for the team.\"}}'"
+      timeout: 5
 ---
 
 # ACE Expert Agent

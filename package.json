@@ -2,16 +2,24 @@
   "name": "ace-vscode",
   "displayName": "ACE for GitHub Copilot",
   "description": "Pattern learning and retrieval for GitHub Copilot - captures what works, retrieves it when needed",
-  "version": "0.5.3",
+  "version": "0.6.0",
   "publisher": "ce-dot-net",
   "license": "MIT",
+  "homepage": "https://github.com/ce-dot-net/ace-vscode#readme",
+  "bugs": {
+    "url": "https://github.com/ce-dot-net/ace-vscode/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/ce-dot-net/ace-vscode.git"
   },
   "icon": "resources/ace-icon.png",
+  "galleryBanner": {
+    "color": "#0F0F12",
+    "theme": "dark"
+  },
   "engines": {
-    "vscode": "^1.115.0"
+    "vscode": "^1.118.0"
   },
   "categories": [
     "Machine Learning",
@@ -120,11 +128,15 @@
     "languageModelTools": [
       {
         "name": "ace_search",
-        "displayName": "ACE Pattern Search",
+        "displayName": "Search Patterns",
         "toolReferenceName": "ace_search",
         "canBeReferencedInPrompt": true,
         "modelDescription": "MANDATORY: Search for proven coding patterns BEFORE implementing, building, fixing, or debugging. Returns battle-tested approaches, known gotchas, and best practices from the team's playbook. ALWAYS call this first when starting any coding task.",
         "userDescription": "Search ACE playbook for relevant patterns",
+        "confirmationMessages": {
+          "title": "Search Patterns",
+          "message": "Search the ACE playbook for proven patterns related to this task before implementing."
+        },
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -153,11 +165,15 @@
       },
       {
         "name": "ace_learn",
-        "displayName": "ACE Learn",
+        "displayName": "Capture Learning",
         "toolReferenceName": "ace_learn",
         "canBeReferencedInPrompt": true,
         "modelDescription": "MANDATORY: Capture patterns from completed work. ALWAYS call this AFTER implementing features, fixing bugs, or discovering gotchas. Saves knowledge for future use - this is how the team learns and improves.",
         "userDescription": "Capture patterns and lessons learned from work",
+        "confirmationMessages": {
+          "title": "Capture Learning",
+          "message": "Save lessons, gotchas, and patterns from this completed task to the ACE playbook."
+        },
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -393,7 +409,7 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.11.0",
     "@types/sinon": "^21.0.0",
-    "@types/vscode": "^1.115.0",
+    "@types/vscode": "^1.118.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "@vscode/test-cli": "^0.0.12",

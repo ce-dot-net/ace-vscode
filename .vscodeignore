@@ -46,8 +46,13 @@ Thumbs.db
 # Cache and data files
 .ace-cache/**
 .claude/**
+.serena/**
+.cursor/**
 *.db
 *.log
+
+# Plans / drafts (not for marketplace)
+PLAN-*.md
 
 # Package files
 *.vsix
