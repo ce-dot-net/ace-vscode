@@ -2,7 +2,7 @@
   "name": "ace-vscode",
   "displayName": "ACE for GitHub Copilot",
   "description": "Pattern learning and retrieval for GitHub Copilot - captures what works, retrieves it when needed",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "publisher": "ce-dot-net",
   "license": "MIT",
   "homepage": "https://github.com/ce-dot-net/ace-vscode#readme",
@@ -296,29 +296,45 @@
             "id": "ace-login",
             "title": "Sign In to ACE",
             "description": "Connect your ACE account to start using pattern learning.\n\n[Sign In](command:ace-vscode.login)",
-            "media": { "markdown": "skills/ace-pattern-learning/SKILL.md" },
-            "completionEvents": ["onCommand:ace-vscode.login"]
+            "media": {
+              "markdown": "skills/ace-pattern-learning/SKILL.md"
+            },
+            "completionEvents": [
+              "onCommand:ace-vscode.login"
+            ]
           },
           {
             "id": "ace-configure",
             "title": "Configure Your Project",
             "description": "Select your organization and project.\n\n[Configure Project](command:ace-vscode.configure)",
-            "media": { "markdown": "skills/ace-pattern-learning/SKILL.md" },
-            "completionEvents": ["onCommand:ace-vscode.configure"]
+            "media": {
+              "markdown": "skills/ace-pattern-learning/SKILL.md"
+            },
+            "completionEvents": [
+              "onCommand:ace-vscode.configure"
+            ]
           },
           {
             "id": "ace-update-agents",
             "title": "Install Agent Files",
             "description": "Deploy hooks, skills, and agent files to your workspace.\n\n[Install Agent Files](command:ace-vscode.updateAgents)",
-            "media": { "markdown": "skills/ace-pattern-learning/SKILL.md" },
-            "completionEvents": ["onCommand:ace-vscode.updateAgents"]
+            "media": {
+              "markdown": "skills/ace-pattern-learning/SKILL.md"
+            },
+            "completionEvents": [
+              "onCommand:ace-vscode.updateAgents"
+            ]
           },
           {
             "id": "ace-first-search",
             "title": "Try Your First Search",
             "description": "Open Copilot Chat and ask it to search for patterns.\n\nType in Copilot Chat: `@ace /search authentication`",
-            "media": { "markdown": "skills/ace-pattern-learning/SKILL.md" },
-            "completionEvents": ["onCommand:ace-vscode.ace.search"]
+            "media": {
+              "markdown": "skills/ace-pattern-learning/SKILL.md"
+            },
+            "completionEvents": [
+              "onCommand:ace-vscode.ace.search"
+            ]
           }
         ]
       }
@@ -403,7 +419,7 @@
     "test": "vscode-test"
   },
   "dependencies": {
-    "@ace-sdk/core": "^2.14.0"
+    "@ace-sdk/core": "^2.18.1"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",

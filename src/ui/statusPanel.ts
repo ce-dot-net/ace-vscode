@@ -8,6 +8,7 @@ import * as vscode from 'vscode';
 import { isProjectConfigured, getProjectConfig } from '../services/config';
 import { isAuthenticated, getCurrentUser, getHardCapInfo, getValidToken } from '../commands/login';
 import { loadUserAuth, getDefaultOrgId } from '@ace-sdk/core';
+import { getAceClient } from '../services/aceClient';
 
 /**
  * Escapes HTML special characters to prevent XSS
@@ -104,10 +105,14 @@ export class StatusPanel {
         // Initial data load
         this._refresh();
 
-        // Auto-refresh every 60 seconds
+        // Auto-refresh every 5 minutes, but only when the panel is visible.
+        // /patterns/top is not cheap server-side; visibility-gated polling
+        // keeps load proportional to actual user attention.
         this._refreshInterval = setInterval(() => {
-            this._refresh();
-        }, 60000);
+            if (this._panel.visible) {
+                this._refresh();
+            }
+        }, 300_000);
     }
 
     private async _refresh() {
@@ -197,23 +202,18 @@ export class StatusPanel {
             // Ignore verify errors - names are optional
         }
 
-        // Fetch top patterns
+        // Fetch top patterns via SDK (correct path, retry, X-ACE-Client header,
+        // org/project resolution, subscription-error handling — none of which
+        // the previous raw fetch did).
         let topPatterns: TopPattern[] = [];
         try {
-            const topResponse = await fetch(`${serverUrl}/patterns/top?limit=5&min_helpful=1`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'X-ACE-Org': orgId,
-                    'X-ACE-Project': projectId
-                }
-            });
-            if (topResponse.ok) {
-                const topData = await topResponse.json() as Record<string, unknown>;
-                topPatterns = ((topData.bullets || topData.patterns) as TopPattern[]) || [];
+            const client = getAceClient();
+            if (client) {
+                const bullets = await client.getTopPatterns({ limit: 5, min_helpful: 1 });
+                topPatterns = bullets as unknown as TopPattern[];
             }
         } catch {
-            // Ignore top patterns errors - optional display
+            // Top patterns are an optional display — never block the panel on this.
         }
 
         return {

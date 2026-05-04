@@ -5,6 +5,14 @@ All notable changes to ACE for VSCode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.4] - 2026-04-30
+
+### Changed
+- **`@ace-sdk/core` bumped to ^2.18.1** (from ^2.14.0). API surface for `getTopPatterns` is unchanged; bump pulls in upstream improvements to retry, error typing (`QuotaExceededError`, `TokenExpiredError`, etc.), and local cache utilities.
+- **Status panel polling — proper SDK integration + cadence cut** —
+  Replaced the raw `fetch` for top patterns with `client.getTopPatterns({ limit: 5, min_helpful: 1 })` from `@ace-sdk/core`. The SDK call brings retry, the `X-ACE-Client: copilot` header, full org/project resolution, and subscription-error handling — none of which the raw fetch had. The 0.6.3 path fix is preserved (`/patterns/top` via the SDK).
+- **Poll interval 60s → 5 min**, and **only when the panel is visible** (the `setInterval` callback now skips if `panel.visible === false`). `/patterns/top` is not cheap server-side; visibility-gated polling keeps load proportional to user attention. Existing `onDidChangeViewState` already triggers an immediate refresh when the panel becomes visible, so users see fresh data instantly when they reopen the tab.
+
 ## [0.6.3] - 2026-04-30
 
 ### Fixed
