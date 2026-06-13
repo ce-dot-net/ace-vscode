@@ -474,19 +474,6 @@ export class StatusPanel {
         const bySection = stats.by_section;
         const byDomain = stats.by_domain;
         const topPatterns = stats.top_patterns;
-        const helpfulTotal = stats.helpful_total;
-        const harmfulTotal = stats.harmful_total;
-        const trustScore = helpfulTotal + harmfulTotal > 0
-            ? Math.round((helpfulTotal / (helpfulTotal + harmfulTotal)) * 100)
-            : 100;
-
-        // Issue #19: reward vocabulary
-        const hasRewardData = stats.patterns_with_v15_reward && stats.patterns_with_v15_reward > 0;
-        const rewardTotal = stats.cumulative_reward_total ?? 0;
-        const atRiskCount = stats.at_risk_count ?? 0;
-        const hotTotal = stats.hot_total ?? 0;
-        const warmTotal = stats.warm_total ?? 0;
-        const coldTotal = stats.cold_total ?? 0;
 
         const hardCapHtml = this._getHardCapHtml();
         const authStatusHtml = this._getAuthStatusHtml();
@@ -877,52 +864,7 @@ export class StatusPanel {
         </div>
     </div>
 
-    ${hasRewardData ? `
-    <div class="quality-metrics">
-        ${(rewardTotal === 0 && atRiskCount === 0) ? `
-        <div class="quality-item" style="flex: 3;">
-            <div class="quality-label">📊 Ranking Signal</div>
-            <div style="font-size: 12px; color: var(--vscode-descriptionForeground); margin-top: 4px;">
-                No credited traces yet — ranking uses match_factors (ucb_score / semantic_score / confidence)
-            </div>
-        </div>
-        ` : `
-        <div class="quality-item">
-            <div class="quality-value ${rewardTotal >= 0 ? 'positive' : 'negative'}">${rewardTotal.toFixed(2)}</div>
-            <div class="quality-label">🏅 Cumulative Reward</div>
-        </div>
-        ${(atRiskCount > 0 && rewardTotal < 0) ? `
-        <div class="quality-item">
-            <div class="quality-value negative at-risk-badge">${atRiskCount}</div>
-            <div class="quality-label">⚠️ At-Risk Patterns</div>
-        </div>
-        ` : ''}
-        `}
-        <div class="quality-item">
-            <div class="quality-label">🌡️ Tier Distribution</div>
-            <div class="tier-bar" style="display:flex; gap:8px; margin-top:6px; font-size:13px;">
-                <span style="color:#4CAF50;">🔥 ${hotTotal}</span>
-                <span style="color:#FF9800;">🌤️ ${warmTotal}</span>
-                <span style="color:#9E9E9E;">❄️ ${coldTotal}</span>
-            </div>
-        </div>
-    </div>
-    ` : `
-    <div class="quality-metrics">
-        <div class="quality-item">
-            <div class="quality-value positive">${Math.round(helpfulTotal)}</div>
-            <div class="quality-label">👍 Helpful</div>
-        </div>
-        <div class="quality-item">
-            <div class="quality-value negative">${Math.round(harmfulTotal)}</div>
-            <div class="quality-label">👎 Harmful</div>
-        </div>
-        <div class="quality-item">
-            <div class="quality-value neutral">${trustScore}%</div>
-            <div class="quality-label">🎯 Trust Score</div>
-        </div>
-    </div>
-    `}
+    ${renderQualityMetricsHtml(stats)}
 
     ${topPatterns.length > 0 ? `
     <div class="top-patterns">
@@ -1084,4 +1026,87 @@ interface StatusData {
     project_id: string;
     project_name: string;
     top_patterns: TopPattern[];
+}
+
+/** Minimal shape needed to render the quality-metrics block (subset of StatusData). */
+export interface QualityMetricsInput {
+    helpful_total: number;
+    harmful_total: number;
+    cumulative_reward_total?: number;
+    hot_total?: number;
+    warm_total?: number;
+    cold_total?: number;
+    at_risk_count?: number;
+    patterns_with_v15_reward?: number;
+}
+
+/**
+ * Render the status panel "quality-metrics" block (Issue #19).
+ *
+ * Exported as a pure function (no `this`, no webview) so it can be unit-tested
+ * directly. Semantics: a pattern is at-risk when cumulative reward < 0; reward
+ * == 0 is uncredited/neutral. Cold projects (reward 0, no at-risk) show a
+ * ranking-signal note instead of a bare "0.00". Falls back to the legacy
+ * helpful/harmful/Trust-Score block when there is no v15 reward data.
+ */
+export function renderQualityMetricsHtml(stats: QualityMetricsInput): string {
+    const helpfulTotal = stats.helpful_total;
+    const harmfulTotal = stats.harmful_total;
+    const trustScore = helpfulTotal + harmfulTotal > 0
+        ? Math.round((helpfulTotal / (helpfulTotal + harmfulTotal)) * 100)
+        : 100;
+
+    const hasRewardData = stats.patterns_with_v15_reward && stats.patterns_with_v15_reward > 0;
+    const rewardTotal = stats.cumulative_reward_total ?? 0;
+    const atRiskCount = stats.at_risk_count ?? 0;
+    const hotTotal = stats.hot_total ?? 0;
+    const warmTotal = stats.warm_total ?? 0;
+    const coldTotal = stats.cold_total ?? 0;
+
+    return hasRewardData ? `
+    <div class="quality-metrics">
+        ${(rewardTotal === 0 && atRiskCount === 0) ? `
+        <div class="quality-item" style="flex: 3;">
+            <div class="quality-label">📊 Ranking Signal</div>
+            <div style="font-size: 12px; color: var(--vscode-descriptionForeground); margin-top: 4px;">
+                No credited traces yet — ranking uses match_factors (ucb_score / semantic_score / confidence)
+            </div>
+        </div>
+        ` : `
+        <div class="quality-item">
+            <div class="quality-value ${rewardTotal >= 0 ? 'positive' : 'negative'}">${rewardTotal.toFixed(2)}</div>
+            <div class="quality-label">🏅 Cumulative Reward</div>
+        </div>
+        ${(atRiskCount > 0 && rewardTotal < 0) ? `
+        <div class="quality-item">
+            <div class="quality-value negative at-risk-badge">${atRiskCount}</div>
+            <div class="quality-label">⚠️ At-Risk Patterns</div>
+        </div>
+        ` : ''}
+        `}
+        <div class="quality-item">
+            <div class="quality-label">🌡️ Tier Distribution</div>
+            <div class="tier-bar" style="display:flex; gap:8px; margin-top:6px; font-size:13px;">
+                <span style="color:#4CAF50;">🔥 ${hotTotal}</span>
+                <span style="color:#FF9800;">🌤️ ${warmTotal}</span>
+                <span style="color:#9E9E9E;">❄️ ${coldTotal}</span>
+            </div>
+        </div>
+    </div>
+    ` : `
+    <div class="quality-metrics">
+        <div class="quality-item">
+            <div class="quality-value positive">${Math.round(helpfulTotal)}</div>
+            <div class="quality-label">👍 Helpful</div>
+        </div>
+        <div class="quality-item">
+            <div class="quality-value negative">${Math.round(harmfulTotal)}</div>
+            <div class="quality-label">👎 Harmful</div>
+        </div>
+        <div class="quality-item">
+            <div class="quality-value neutral">${trustScore}%</div>
+            <div class="quality-label">🎯 Trust Score</div>
+        </div>
+    </div>
+    `;
 }
