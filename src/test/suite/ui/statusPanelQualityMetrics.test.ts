@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { renderQualityMetricsHtml, QualityMetricsInput } from '../../../ui/statusPanel';
+import { renderQualityMetricsHtml, QualityMetricsInput, buildAceHeaders } from '../../../ui/statusPanel';
 
 /**
  * REAL tests for the exported renderQualityMetricsHtml() (Issue #19).
@@ -75,5 +75,20 @@ suite('renderQualityMetricsHtml — reward vocabulary (#19)', () => {
     test('patterns_with_v15_reward undefined: legacy fallback with 100% trust on empty', () => {
         const html = renderQualityMetricsHtml(base({ helpful_total: 0, harmful_total: 0 }));
         assert.ok(html.includes('Trust Score') && html.includes('100%'), 'defaults to 100% trust when no data');
+    });
+});
+
+suite('buildAceHeaders — X-ACE-Project scoping (#22)', () => {
+    test('always sends X-ACE-Org and X-ACE-Project plus auth', () => {
+        const h = buildAceHeaders('tok', 'org1', 'proj1');
+        assert.strictEqual(h['X-ACE-Org'], 'org1');
+        assert.strictEqual(h['X-ACE-Project'], 'proj1', 'X-ACE-Project required for user tokens in multi-project orgs');
+        assert.strictEqual(h['Authorization'], 'Bearer tok');
+        assert.strictEqual(h['Content-Type'], 'application/json');
+    });
+
+    test('adds X-ACE-Client only when client option is provided', () => {
+        assert.strictEqual(buildAceHeaders('t', 'o', 'p', { client: 'copilot' })['X-ACE-Client'], 'copilot');
+        assert.ok(!('X-ACE-Client' in buildAceHeaders('t', 'o', 'p')), 'no X-ACE-Client by default (verify fetch)');
     });
 });

@@ -3,7 +3,7 @@ import * as sinon from 'sinon';
 import * as vscode from 'vscode';
 import { handleTop } from '../../../chat/commands/top';
 import { handleSearch } from '../../../chat/commands/search';
-import { handleLearn } from '../../../chat/commands/learn';
+import { handleLearn, historyToTrajectory } from '../../../chat/commands/learn';
 import * as chatContext from '../../../chat/utils/chatContext';
 import {
     saveSession,
@@ -219,5 +219,49 @@ suite('chat /learn real invocation — F-080 trace threading + reward render (#1
         assert.ok(!('retrieval_id' in trace), 'retrieval_id key absent');
         assert.ok(!('applied_log_ids' in trace), 'applied_log_ids key absent');
         assert.ok(!('session_id' in trace), 'session_id key absent');
+    });
+
+    test('populates trace.trajectory from ChatContext.history (#1)', async () => {
+        clearSession(KEY);
+        const history = [
+            { prompt: 'how do I add JWT auth?' },                              // request turn
+            { response: [{ value: { value: 'Use refresh-token rotation.' } }] } // response turn
+        ] as unknown as vscode.ChatContext['history'];
+        const context = { history } as unknown as vscode.ChatContext;
+
+        const { stream } = makeStream();
+        await handleLearn(makeChatRequest('implemented JWT auth'), context, stream, makeCancellationToken());
+
+        const trace = store.firstCall.args[0];
+        assert.deepStrictEqual(
+            trace.trajectory,
+            ['User: how do I add JWT auth?', 'Assistant: Use refresh-token rotation.', 'Task: implemented JWT auth'],
+            'trajectory built from history turns + final task'
+        );
+    });
+});
+
+suite('learn.ts historyToTrajectory (#1)', () => {
+    test('maps request turns to "User:" and response turns to "Assistant:"', () => {
+        const history = [
+            { prompt: 'first question' },
+            { response: [{ value: { value: 'an answer' } }] },
+            { prompt: 'follow up' }
+        ] as unknown as ReadonlyArray<vscode.ChatRequestTurn | vscode.ChatResponseTurn>;
+
+        assert.deepStrictEqual(historyToTrajectory(history), [
+            'User: first question',
+            'Assistant: an answer',
+            'User: follow up'
+        ]);
+    });
+
+    test('skips empty prompts/responses and returns [] for empty history', () => {
+        assert.deepStrictEqual(historyToTrajectory([]), []);
+        const history = [
+            { prompt: '   ' },
+            { response: [] }
+        ] as unknown as ReadonlyArray<vscode.ChatRequestTurn | vscode.ChatResponseTurn>;
+        assert.deepStrictEqual(historyToTrajectory(history), []);
     });
 });

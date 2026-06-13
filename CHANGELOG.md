@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`isAtRisk` badge in search output**: Patterns with degraded reward signal now surface an at-risk badge; expanded neighbor patterns are shown alongside.
 - **`reward_tier` and `cumulative_v15_reward_delta` in learn output**: Learn response now surfaces the pattern's reward tier and the delta from the latest trace.
 - **`X-ACE-Project` header on config verify**: `/api/v1/config/verify` fetch now includes the `X-ACE-Project` header for server-side project scoping.
+- **Real F-080 trajectory from chat history**: the `/learn` chat command builds the execution-trace `trajectory` from `ChatContext.history` (actual conversation turns) instead of a placeholder, giving the learning loop the real context that led to the work.
+- **"ACE" tool set**: the four `ace_*` language model tools are grouped into an `ace` tool set (`contributes.languageModelToolSets`) for discoverability in the agent `#`-picker.
+- **`task_intent` in agent instructions**: the generated ACE instructions file now documents the ACE 1.5 `task_intent` routing hint for `ace_search`.
 
 ### Changed
 - **`@ace-sdk/core` bumped to `^3.2.3`** — ACE 1.5 reward model and F-080 API surface.

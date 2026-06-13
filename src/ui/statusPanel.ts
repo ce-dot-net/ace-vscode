@@ -162,13 +162,7 @@ export class StatusPanel {
 
         // Fetch analytics
         const analyticsResponse = await fetch(`${serverUrl}/analytics`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                'X-ACE-Org': orgId,
-                'X-ACE-Project': projectId,
-                'X-ACE-Client': 'copilot'
-            }
+            headers: buildAceHeaders(token, orgId, projectId, { client: 'copilot' })
         });
 
         if (!analyticsResponse.ok) {
@@ -185,12 +179,8 @@ export class StatusPanel {
         let projectName = '';
         try {
             const verifyResponse = await fetch(`${serverUrl}/api/v1/config/verify`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'X-ACE-Org': orgId,
-                    'X-ACE-Project': projectId  // required for user tokens in multi-project orgs
-                }
+                // X-ACE-Project required for user tokens in multi-project orgs (#22)
+                headers: buildAceHeaders(token, orgId, projectId)
             });
             if (verifyResponse.ok) {
                 const verifyData = await verifyResponse.json() as Record<string, unknown>;
@@ -1038,6 +1028,30 @@ export interface QualityMetricsInput {
     cold_total?: number;
     at_risk_count?: number;
     patterns_with_v15_reward?: number;
+}
+
+/**
+ * Build the headers for a raw ACE server fetch. Always sends both X-ACE-Org and
+ * X-ACE-Project (the latter is required to scope user tokens in multi-project
+ * orgs — Issue #22). Exported so the header contract is unit-testable without a
+ * live fetch. Pass `client` to add the X-ACE-Client tag (e.g. 'copilot').
+ */
+export function buildAceHeaders(
+    token: string,
+    orgId: string,
+    projectId: string,
+    opts?: { client?: string }
+): Record<string, string> {
+    const headers: Record<string, string> = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'X-ACE-Org': orgId,
+        'X-ACE-Project': projectId
+    };
+    if (opts?.client) {
+        headers['X-ACE-Client'] = opts.client;
+    }
+    return headers;
 }
 
 /**

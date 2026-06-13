@@ -14,7 +14,7 @@ import {
  */
 export async function handleLearn(
     request: vscode.ChatRequest,
-    _context: vscode.ChatContext,
+    context: vscode.ChatContext,
     stream: vscode.ChatResponseStream,
     _token: vscode.CancellationToken
 ): Promise<vscode.ChatResult> {
@@ -47,9 +47,12 @@ export async function handleLearn(
         const session = getSession(sessionKey);
         const playbookUsed = session?.pattern_ids ?? [];
 
+        // Build a real trajectory from the chat conversation history (VS Code
+        // ChatContext.history) instead of an empty/placeholder one — gives the
+        // F-080 trace the actual turn-by-turn context that led to this learning.
         const trace = {
             task: description,
-            trajectory: [`Task: ${description}`],
+            trajectory: [...historyToTrajectory(context.history ?? []), `Task: ${description}`],
             result: { success: true, output: description },
             playbook_used: playbookUsed,
             timestamp: new Date().toISOString(),
@@ -127,4 +130,42 @@ export async function handleLearn(
             description
         }
     };
+}
+
+/**
+ * Build an F-080 trajectory from the chat participant's conversation history.
+ * Duck-typed (no `instanceof`) so it works under both the Extension Host and
+ * plain test stubs: a request turn has a string `prompt`; a response turn has a
+ * `response` array whose markdown parts carry `.value.value`.
+ */
+export function historyToTrajectory(
+    history: ReadonlyArray<vscode.ChatRequestTurn | vscode.ChatResponseTurn>
+): string[] {
+    const lines: string[] = [];
+    for (const turn of history) {
+        const prompt = (turn as vscode.ChatRequestTurn).prompt;
+        if (typeof prompt === 'string') {
+            const trimmed = prompt.trim();
+            if (trimmed) {
+                lines.push(`User: ${trimmed}`);
+            }
+            continue;
+        }
+        const response = (turn as vscode.ChatResponseTurn).response;
+        if (Array.isArray(response)) {
+            const text = response
+                .map(part => {
+                    const value = (part as vscode.ChatResponseMarkdownPart).value;
+                    return value && typeof (value as vscode.MarkdownString).value === 'string'
+                        ? (value as vscode.MarkdownString).value
+                        : '';
+                })
+                .join('')
+                .trim();
+            if (text) {
+                lines.push(`Assistant: ${text}`);
+            }
+        }
+    }
+    return lines;
 }

@@ -250,6 +250,19 @@
         }
       }
     ],
+    "languageModelToolSets": [
+      {
+        "name": "ace",
+        "description": "ACE pattern learning — search proven patterns before implementing/fixing, and capture learnings after completing work.",
+        "icon": "$(lightbulb)",
+        "tools": [
+          "ace_search",
+          "ace_learn",
+          "ace_status",
+          "ace_get_playbook"
+        ]
+      }
+    ],
     "commands": [
       {
         "command": "ace-vscode.configure",
