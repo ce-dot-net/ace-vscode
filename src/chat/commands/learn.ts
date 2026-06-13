@@ -52,7 +52,10 @@ export async function handleLearn(
             trajectory: [`Task: ${description}`],
             result: { success: true, output: description },
             playbook_used: playbookUsed,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            ...(session?.retrieval_id ? { retrieval_id: session.retrieval_id } : {}),           // F-080 #16
+            ...(session?.applied_log_ids?.length ? { applied_log_ids: session.applied_log_ids } : {}), // F-080 #17
+            ...(session?.session_id ? { session_id: session.session_id } : {})                  // F-080 #16
         };
 
         // Use streaming endpoint for real-time progress
@@ -89,6 +92,22 @@ export async function handleLearn(
             if (parts.length > 0) {
                 formatMarkdown(stream, `**Statistics:** ${parts.join('  ')}\n\n`);
             }
+        }
+
+        // Show reward signal from F-080 (#23)
+        if (result.reward_tier || result.cumulative_v15_reward_delta !== undefined) {
+            let rewardLine = `🏅 **Reward:** `;
+            if (result.reward_tier) {
+                rewardLine += `${result.reward_tier} tier`;
+            }
+            if (result.cumulative_v15_reward_delta !== undefined) {
+                const sign = result.cumulative_v15_reward_delta >= 0 ? '+' : '';
+                rewardLine += ` (${sign}${result.cumulative_v15_reward_delta.toFixed(2)} delta)`;
+            }
+            if (result.patterns_rewarded) {
+                rewardLine += ` · ${result.patterns_rewarded} patterns rewarded`;
+            }
+            formatMarkdown(stream, rewardLine + '\n\n');
         }
 
         // Show pattern attribution info and clear session

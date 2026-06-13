@@ -21,6 +21,8 @@ const config = {
   plugins: [
     // @ace-sdk/core@2.14.0+ ships CJS build — no more ESM workarounds needed
     // Only stub native optional deps that can't be bundled
+    // @ace-sdk/core 3.x imports 'better-sqlite3' (exact string) — regex /better-sqlite3/ still matches.
+    // Extension process → stub (RAM-only). MCP subprocess (npx @ace-sdk/mcp) uses its own node_modules.
     new webpack.NormalModuleReplacementPlugin(
       /better-sqlite3/,
       path.resolve(__dirname, 'src/stubs/better-sqlite3-stub.js')

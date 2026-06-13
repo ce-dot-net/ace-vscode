@@ -2,6 +2,25 @@ import * as vscode from 'vscode';
 import { formatMarkdown, formatWarning, formatSectionHeader, formatError } from '../utils/formatters';
 import { getProjectConfig, isGloballyConfigured } from '../../services/config';
 import { getClientForChat, formatProjectContext } from '../utils/chatContext';
+import type { AceClient } from '@ace-sdk/core';
+
+/** Injectable dependencies for handleStatus — allows unit testing without real VS Code. */
+export interface HandleStatusDeps {
+    isGloballyConfigured: () => boolean;
+    getClientForChat: (
+        request: vscode.ChatRequest,
+        stream: vscode.ChatResponseStream
+    ) => { client: AceClient; folder: vscode.WorkspaceFolder | undefined } | undefined;
+    getProjectConfig: (folder: vscode.WorkspaceFolder | undefined) => import('../../services/config').AceProjectConfig | null;
+    formatProjectContext: (stream: vscode.ChatResponseStream, folder: vscode.WorkspaceFolder | undefined) => void;
+}
+
+const defaultDeps: HandleStatusDeps = {
+    isGloballyConfigured,
+    getClientForChat,
+    getProjectConfig,
+    formatProjectContext
+};
 
 /**
  * Handles the /status command - show playbook statistics
@@ -10,10 +29,11 @@ export async function handleStatus(
     request: vscode.ChatRequest,
     _context: vscode.ChatContext,
     stream: vscode.ChatResponseStream,
-    _token: vscode.CancellationToken
+    _token: vscode.CancellationToken,
+    deps: HandleStatusDeps = defaultDeps
 ): Promise<vscode.ChatResult> {
     // Check global configuration first
-    const globalConfigured = isGloballyConfigured();
+    const globalConfigured = deps.isGloballyConfigured();
     if (!globalConfigured) {
         formatSectionHeader(stream, 'ACE Status');
         formatMarkdown(stream, `**Global Configuration:** ❌ Not configured\n\n`);
@@ -23,16 +43,16 @@ export async function handleStatus(
     }
 
     // Get client with folder context
-    const clientInfo = getClientForChat(request, stream);
+    const clientInfo = deps.getClientForChat(request, stream);
     if (!clientInfo) {
         return { metadata: { command: 'status' } };
     }
 
     const { client, folder } = clientInfo;
-    const projectConfig = getProjectConfig(folder);
+    const projectConfig = deps.getProjectConfig(folder);
 
     formatSectionHeader(stream, 'ACE Playbook Status');
-    formatProjectContext(stream, folder);
+    deps.formatProjectContext(stream, folder);
     formatMarkdown(stream, '*Fetching statistics from ACE server...*\n\n');
 
     try {
@@ -72,18 +92,36 @@ export async function handleStatus(
             formatMarkdown(stream, '\n');
         }
 
-        // Quality metrics
-        if (status.avg_confidence !== undefined || status.helpful_total !== undefined) {
+        // Quality metrics — only emit the section when there is something to show
+        const hasRewardData = status.cumulative_reward_total !== undefined &&
+            (status.patterns_with_v15_reward ?? 0) > 0;
+        const hasQualityData = status.avg_confidence !== undefined ||
+            hasRewardData ||
+            status.helpful_total !== undefined;
+
+        if (hasQualityData) {
             formatMarkdown(stream, `### Quality\n`);
             if (status.avg_confidence !== undefined) {
                 const quality = Math.round(status.avg_confidence * 100);
                 formatMarkdown(stream, `- Average Confidence: ${quality}%\n`);
             }
-            if (status.helpful_total !== undefined) {
+            if (hasRewardData) {
+                // Cold project: reward total is 0 and no at-risk patterns yet
+                if (status.cumulative_reward_total === 0 && (status.at_risk_count ?? 0) === 0) {
+                    formatMarkdown(stream, `- Ranking Signal: No credited traces yet — ranking uses match_factors\n`);
+                } else {
+                    formatMarkdown(stream, `- Cumulative Reward: ${status.cumulative_reward_total}\n`);
+                    formatMarkdown(stream, `- Hot / Warm / Cold: ${status.hot_total ?? 0} / ${status.warm_total ?? 0} / ${status.cold_total ?? 0}\n`);
+                    if ((status.at_risk_count ?? 0) > 0) {
+                        formatMarkdown(stream, `- At-Risk Patterns: ${status.at_risk_count}\n`);
+                    }
+                }
+            } else if (status.helpful_total !== undefined) {
+                // Legacy fallback: server has no v15 patterns yet
                 formatMarkdown(stream, `- Total Helpful: ${status.helpful_total}\n`);
-            }
-            if (status.harmful_total !== undefined) {
-                formatMarkdown(stream, `- Total Harmful: ${status.harmful_total}\n`);
+                if (status.harmful_total !== undefined) {
+                    formatMarkdown(stream, `- Total Harmful: ${status.harmful_total}\n`);
+                }
             }
             formatMarkdown(stream, '\n');
         }

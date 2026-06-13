@@ -7,7 +7,7 @@
 import * as vscode from 'vscode';
 import { isProjectConfigured, getProjectConfig } from '../services/config';
 import { isAuthenticated, getCurrentUser, getHardCapInfo, getValidToken } from '../commands/login';
-import { loadUserAuth, getDefaultOrgId } from '@ace-sdk/core';
+import { loadUserAuth, getDefaultOrgId, computeHelpful } from '@ace-sdk/core';
 import { getAceClient } from '../services/aceClient';
 
 /**
@@ -188,7 +188,8 @@ export class StatusPanel {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
-                    'X-ACE-Org': orgId
+                    'X-ACE-Org': orgId,
+                    'X-ACE-Project': projectId  // required for user tokens in multi-project orgs
                 }
             });
             if (verifyResponse.ok) {
@@ -205,12 +206,20 @@ export class StatusPanel {
         // Fetch top patterns via SDK (correct path, retry, X-ACE-Client header,
         // org/project resolution, subscription-error handling — none of which
         // the previous raw fetch did).
+        // Issue #21: fetch limit=20 (no min_helpful), then sort by reward desc, slice 5.
         let topPatterns: TopPattern[] = [];
         try {
             const client = getAceClient();
             if (client) {
-                const bullets = await client.getTopPatterns({ limit: 5, min_helpful: 1 });
-                topPatterns = bullets as unknown as TopPattern[];
+                const bullets = await client.getTopPatterns({ limit: 20 });
+                const sorted = (bullets as unknown as TopPattern[])
+                    .sort((a, b) => {
+                        const ra = a.cumulative_v15_reward ?? computeHelpful(a);
+                        const rb = b.cumulative_v15_reward ?? computeHelpful(b);
+                        return rb - ra;
+                    })
+                    .slice(0, 5);
+                topPatterns = sorted;
             }
         } catch {
             // Top patterns are an optional display — never block the panel on this.
@@ -223,6 +232,12 @@ export class StatusPanel {
             by_domain: (analytics.by_domain as Record<string, number>) || {},
             helpful_total: (analytics.helpful_total as number) || 0,
             harmful_total: (analytics.harmful_total as number) || 0,
+            cumulative_reward_total: analytics.cumulative_reward_total as number | undefined,
+            hot_total: analytics.hot_total as number | undefined,
+            warm_total: analytics.warm_total as number | undefined,
+            cold_total: analytics.cold_total as number | undefined,
+            at_risk_count: analytics.at_risk_count as number | undefined,
+            patterns_with_v15_reward: analytics.patterns_with_v15_reward as number | undefined,
             org_id: orgId,
             org_name: orgName,
             project_id: projectId,
@@ -464,6 +479,14 @@ export class StatusPanel {
         const trustScore = helpfulTotal + harmfulTotal > 0
             ? Math.round((helpfulTotal / (helpfulTotal + harmfulTotal)) * 100)
             : 100;
+
+        // Issue #19: reward vocabulary
+        const hasRewardData = stats.patterns_with_v15_reward && stats.patterns_with_v15_reward > 0;
+        const rewardTotal = stats.cumulative_reward_total ?? 0;
+        const atRiskCount = stats.at_risk_count ?? 0;
+        const hotTotal = stats.hot_total ?? 0;
+        const warmTotal = stats.warm_total ?? 0;
+        const coldTotal = stats.cold_total ?? 0;
 
         const hardCapHtml = this._getHardCapHtml();
         const authStatusHtml = this._getAuthStatusHtml();
@@ -854,6 +877,37 @@ export class StatusPanel {
         </div>
     </div>
 
+    ${hasRewardData ? `
+    <div class="quality-metrics">
+        ${(rewardTotal === 0 && atRiskCount === 0) ? `
+        <div class="quality-item" style="flex: 3;">
+            <div class="quality-label">📊 Ranking Signal</div>
+            <div style="font-size: 12px; color: var(--vscode-descriptionForeground); margin-top: 4px;">
+                No credited traces yet — ranking uses match_factors (ucb_score / semantic_score / confidence)
+            </div>
+        </div>
+        ` : `
+        <div class="quality-item">
+            <div class="quality-value ${rewardTotal >= 0 ? 'positive' : 'negative'}">${rewardTotal.toFixed(2)}</div>
+            <div class="quality-label">🏅 Cumulative Reward</div>
+        </div>
+        ${(atRiskCount > 0 && rewardTotal < 0) ? `
+        <div class="quality-item">
+            <div class="quality-value negative at-risk-badge">${atRiskCount}</div>
+            <div class="quality-label">⚠️ At-Risk Patterns</div>
+        </div>
+        ` : ''}
+        `}
+        <div class="quality-item">
+            <div class="quality-label">🌡️ Tier Distribution</div>
+            <div class="tier-bar" style="display:flex; gap:8px; margin-top:6px; font-size:13px;">
+                <span style="color:#4CAF50;">🔥 ${hotTotal}</span>
+                <span style="color:#FF9800;">🌤️ ${warmTotal}</span>
+                <span style="color:#9E9E9E;">❄️ ${coldTotal}</span>
+            </div>
+        </div>
+    </div>
+    ` : `
     <div class="quality-metrics">
         <div class="quality-item">
             <div class="quality-value positive">${Math.round(helpfulTotal)}</div>
@@ -868,6 +922,7 @@ export class StatusPanel {
             <div class="quality-label">🎯 Trust Score</div>
         </div>
     </div>
+    `}
 
     ${topPatterns.length > 0 ? `
     <div class="top-patterns">
@@ -877,7 +932,10 @@ export class StatusPanel {
                 ${escapeHtml(p.content?.substring(0, 200))}${(p.content?.length || 0) > 200 ? '...' : ''}
                 <div class="pattern-meta">
                     <span class="pattern-badge">${escapeHtml(p.section?.replace(/_/g, ' ') || 'general')}</span>
-                    <span>👍 ${Math.round(p.helpful || 0)}</span>
+                    <span>${p.cumulative_v15_reward !== undefined
+                        ? `🏅 ${p.cumulative_v15_reward.toFixed(2)}`
+                        : `👍 ${computeHelpful(p).toFixed(1)}`
+                    }</span>
                     <span>📊 ${Math.round((p.confidence || 0) * 100)}% confidence</span>
                     ${p.domain ? `<span>🏷️ ${escapeHtml(p.domain)}</span>` : ''}
                 </div>
@@ -998,6 +1056,14 @@ interface TopPattern {
     helpful?: number;
     confidence?: number;
     domain?: string;
+    // ACE 1.5 reward fields
+    cumulative_v15_reward?: number;
+    n_hot_pos?: number;
+    n_hot_neg?: number;
+    n_warm_pos?: number;
+    n_warm_neg?: number;
+    n_cold_pos?: number;
+    n_cold_neg?: number;
 }
 
 interface StatusData {
@@ -1005,8 +1071,14 @@ interface StatusData {
     avg_confidence: number;
     by_section: Record<string, number>;
     by_domain: Record<string, number>;
-    helpful_total: number;
-    harmful_total: number;
+    helpful_total: number;          // legacy passthrough
+    harmful_total: number;          // legacy passthrough
+    cumulative_reward_total?: number;
+    hot_total?: number;
+    warm_total?: number;
+    cold_total?: number;
+    at_risk_count?: number;
+    patterns_with_v15_reward?: number;
     org_id: string;
     org_name: string;
     project_id: string;

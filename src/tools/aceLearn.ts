@@ -60,7 +60,10 @@ export class AceLearnTool implements vscode.LanguageModelTool<AceLearnInput> {
                 trajectory: [] as string[],
                 result: { success, output: taskOutput || '' },
                 playbook_used: playbookUsed,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                ...(session?.retrieval_id ? { retrieval_id: session.retrieval_id } : {}),          // F-080 #16
+                ...(session?.applied_log_ids?.length ? { applied_log_ids: session.applied_log_ids } : {}), // F-080 #17
+                ...(session?.session_id ? { session_id: session.session_id } : {})                 // F-080 #16
             };
 
             // Use streaming endpoint for real-time progress
@@ -116,6 +119,22 @@ export class AceLearnTool implements vscode.LanguageModelTool<AceLearnInput> {
                 }
             } else {
                 output += `   Analysis pending\n`;
+            }
+
+            // Show reward signal from F-080 (#23)
+            if (result.reward_tier || result.cumulative_v15_reward_delta !== undefined) {
+                output += `\n🏅 **Reward:** `;
+                if (result.reward_tier) {
+                    output += `${result.reward_tier} tier`;
+                }
+                if (result.cumulative_v15_reward_delta !== undefined) {
+                    const sign = result.cumulative_v15_reward_delta >= 0 ? '+' : '';
+                    output += ` (${sign}${result.cumulative_v15_reward_delta.toFixed(2)} delta)`;
+                }
+                if (result.patterns_rewarded) {
+                    output += ` · ${result.patterns_rewarded} patterns rewarded`;
+                }
+                output += `\n`;
             }
 
             // Show pattern attribution info and clear session

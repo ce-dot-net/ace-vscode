@@ -5,6 +5,22 @@ All notable changes to ACE for VSCode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.7.0 — ACE 1.5 Migration
+
+### Added
+- **F-080 feedback loop**: `retrieval_id` and `applied_log_ids` are now captured in execution traces, closing the reinforcement learning loop between retrieval and learning.
+- **`session_id` and `task_intent` in search**: `searchPatterns()` now receives `session_id` and `task_intent` for bandit routing in ACE 1.5.
+- **`isAtRisk` badge in search output**: Patterns with degraded reward signal now surface an at-risk badge; expanded neighbor patterns are shown alongside.
+- **`reward_tier` and `cumulative_v15_reward_delta` in learn output**: Learn response now surfaces the pattern's reward tier and the delta from the latest trace.
+- **`X-ACE-Project` header on config verify**: `/api/v1/config/verify` fetch now includes the `X-ACE-Project` header for server-side project scoping.
+
+### Changed
+- **`@ace-sdk/core` bumped to `^3.2.3`** — ACE 1.5 reward model and F-080 API surface.
+- **`@ace-sdk/mcp` pinned to `^3.1.2`** in MCP spawn args — prevents unintended protocol drift across patch releases.
+- **Reward vocabulary**: Trust Score percentage replaced with `cumulative_reward_total` and a tier bar (`reward_tier`) throughout status and learn output.
+- **Pattern sorting**: `min_helpful: 1` filter removed; patterns are now sorted client-side by `cumulative_v15_reward` descending, surfacing highest-signal patterns first regardless of raw helpful count.
+- **`AGENT_FILES_VERSION` bumped to `0.5.0`** — triggers the update prompt for users who already have the extension installed, delivering updated tool descriptions and `task_intent` schema.
+
 ## [0.6.4] - 2026-04-30
 
 ### Changed

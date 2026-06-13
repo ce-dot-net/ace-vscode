@@ -1,5 +1,9 @@
 import * as assert from 'assert';
+import * as sinon from 'sinon';
+import * as vscode from 'vscode';
 import { createMockBullet } from '../mocks/aceSDK';
+import { AceStatusTool } from '../../../tools/aceStatus';
+import type { PlaybookBullet } from '@ace-sdk/core';
 
 /**
  * Unit tests for AceStatusTool
@@ -148,5 +152,98 @@ suite('AceStatusTool Input Validation', () => {
     test('status can be invoked with empty input', () => {
         const input: Record<string, never> = {};
         assert.deepStrictEqual(input, {}, 'Empty input is valid');
+    });
+});
+
+// ---------------------------------------------------------------------------
+// ACE 1.5 reward display tests (#20)
+// ---------------------------------------------------------------------------
+
+function makeInvocationOptions(): vscode.LanguageModelToolInvocationOptions<Record<string, never>> {
+    return {
+        input: {},
+        toolInvocationToken: undefined
+    } as unknown as vscode.LanguageModelToolInvocationOptions<Record<string, never>>;
+}
+
+function makeCancellationToken(): vscode.CancellationToken {
+    return {
+        isCancellationRequested: false,
+        onCancellationRequested: () => ({ dispose: () => {} })
+    } as vscode.CancellationToken;
+}
+
+function resultToString(result: vscode.LanguageModelToolResult): string {
+    // The real vscode.LanguageModelToolResult stores parts as .content in the test env
+    const r = result as unknown as { content: { value: string }[] };
+    return r.content.map(p => p.value).join('');
+}
+
+function makeFakeStatusBullet(overrides: Partial<PlaybookBullet> = {}): PlaybookBullet {
+    return {
+        id: `b_${Math.random().toString(36).slice(2, 7)}`,
+        content: 'pattern content example for testing',
+        section: 'strategies_and_hard_rules',
+        helpful: 5,
+        harmful: 0,
+        confidence: 0.9,
+        evidence: [],
+        observations: 1,
+        created_at: new Date().toISOString(),
+        last_used: null,
+        root_cause: '',
+        error_context: '',
+        ...overrides
+    };
+}
+
+suite('AceStatusTool — ACE 1.5 reward display (#20)', () => {
+    let sandbox: sinon.SinonSandbox;
+    let fakeClient: { getStatus: sinon.SinonStub };
+
+    setup(() => {
+        sandbox = sinon.createSandbox();
+        fakeClient = { getStatus: sandbox.stub() };
+    });
+
+    teardown(() => {
+        sandbox.restore();
+    });
+
+    test('uses cumulative_v15_reward.toFixed(2) for top_helpful when present', async () => {
+        const bullet = makeFakeStatusBullet({ cumulative_v15_reward: 1.5, helpful: 99 });
+        fakeClient.getStatus.resolves({
+            total_patterns: 1,
+            top_helpful: [bullet]
+        });
+
+        // Use constructor injection — AceStatusTool accepts optional clientProvider
+        const tool = new AceStatusTool(
+            () => fakeClient as unknown as ReturnType<typeof import('../../../services/aceClient').getAceClient>
+        );
+        const result = await tool.invoke(makeInvocationOptions(), makeCancellationToken());
+        const output = resultToString(result);
+
+        assert.ok(output.includes('reward: 1.50'), `Expected "reward: 1.50" in output: ${output}`);
+        assert.ok(!output.includes('👍 99'), `Raw helpful count must NOT appear: ${output}`);
+    });
+
+    test('uses computeHelpful().toFixed(1) as fallback when cumulative_v15_reward absent', async () => {
+        // n_hot_pos=2, n_warm_pos=0, n_cold_pos=0 => computeHelpful = 2*1.0 = 2.0
+        const bullet = makeFakeStatusBullet({ n_hot_pos: 2, n_warm_pos: 0, n_cold_pos: 0, helpful: 0 });
+        fakeClient.getStatus.resolves({
+            total_patterns: 1,
+            top_helpful: [bullet]
+        });
+
+        const tool = new AceStatusTool(
+            () => fakeClient as unknown as ReturnType<typeof import('../../../services/aceClient').getAceClient>
+        );
+        const result = await tool.invoke(makeInvocationOptions(), makeCancellationToken());
+        const output = resultToString(result);
+
+        assert.ok(output.includes('reward:'), `Expected "reward:" label in output: ${output}`);
+        assert.ok(output.includes('2.0'), `Expected computeHelpful result "2.0" in output: ${output}`);
+        assert.ok(!output.includes('👍'), `Raw helpful emoji must NOT appear: ${output}`);
     });
 });

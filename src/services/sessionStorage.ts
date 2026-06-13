@@ -18,6 +18,8 @@ export interface SessionData {
     query: string;
     timestamp: number;
     expires_at: number;
+    retrieval_id?: string;      // F-080 #16: UUID from SearchResponseWithMetadata.retrieval_id
+    applied_log_ids?: number[]; // F-080 #17: retrieval_log_id integers from match_factors
 }
 
 // In-memory store (keyed by folder URI or 'default')

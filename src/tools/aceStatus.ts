@@ -1,16 +1,21 @@
 import * as vscode from 'vscode';
+import { computeHelpful } from '@ace-sdk/core';
 import { getAceClient } from '../services/aceClient';
+
+type ClientProvider = () => ReturnType<typeof getAceClient>;
 
 /**
  * ACE Status Tool - Shows playbook statistics
  * Returns verbose formatted output with section breakdown
  */
 export class AceStatusTool implements vscode.LanguageModelTool<Record<string, never>> {
+    constructor(private readonly clientProvider: ClientProvider = getAceClient) {}
+
     async invoke(
         _options: vscode.LanguageModelToolInvocationOptions<Record<string, never>>,
         _token: vscode.CancellationToken
     ): Promise<vscode.LanguageModelToolResult> {
-        const client = getAceClient();
+        const client = this.clientProvider();
 
         if (!client) {
             return new vscode.LanguageModelToolResult([
@@ -56,7 +61,10 @@ export class AceStatusTool implements vscode.LanguageModelTool<Record<string, ne
                 output += `**🏆 Top Helpful Patterns:**\n`;
                 data.top_helpful.slice(0, 3).forEach((p, i) => {
                     const preview = p.content.length > 50 ? p.content.slice(0, 50) + '...' : p.content;
-                    output += `   ${i + 1}. ${preview} (👍 ${p.helpful})\n`;
+                    const score = p.cumulative_v15_reward !== undefined
+                        ? p.cumulative_v15_reward.toFixed(2)
+                        : computeHelpful(p).toFixed(1);
+                    output += `   ${i + 1}. ${preview} (reward: ${score})\n`;
                 });
                 output += '\n';
             }

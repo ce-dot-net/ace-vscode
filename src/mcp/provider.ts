@@ -78,7 +78,7 @@ export class AceMcpServerProvider implements vscode.McpServerDefinitionProvider 
         const def = new vscode.McpStdioServerDefinition(
             MCP_PROVIDER_LABEL,
             'npx',
-            ['--yes', '@ace-sdk/mcp'],
+            ['--yes', '@ace-sdk/mcp@^3.1.2'],
             env
         );
 
