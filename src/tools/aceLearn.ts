@@ -57,7 +57,11 @@ export class AceLearnTool implements vscode.LanguageModelTool<AceLearnInput> {
 
             const trace = {
                 task,
-                trajectory: [] as string[],
+                // LM tools get no ChatContext.history, so the trajectory is built from
+                // the search steps accumulated in the session (see sessionStorage).
+                trajectory: session?.trajectory?.length
+                    ? [...session.trajectory, `Task: ${task}`]
+                    : [`Task: ${task}`],
                 result: { success, output: taskOutput || '' },
                 playbook_used: playbookUsed,
                 timestamp: new Date().toISOString(),
@@ -137,9 +141,13 @@ export class AceLearnTool implements vscode.LanguageModelTool<AceLearnInput> {
                 output += `\n`;
             }
 
-            // Show pattern attribution info and clear session
+            // Show pattern attribution info
             if (playbookUsed.length > 0) {
                 output += `\n📎 Linked to ${playbookUsed.length} patterns from previous search\n`;
+            }
+            // Consume-on-read: clear the session so a search is attributed at most once,
+            // bounding cross-session mis-attribution under concurrent agent sessions.
+            if (session) {
                 clearSession(sessionKey);
             }
 

@@ -113,9 +113,12 @@ export async function handleLearn(
             formatMarkdown(stream, rewardLine + '\n\n');
         }
 
-        // Show pattern attribution info and clear session
+        // Show pattern attribution info
         if (playbookUsed.length > 0) {
             formatMarkdown(stream, `📎 Linked to ${playbookUsed.length} patterns from previous search\n`);
+        }
+        // Consume-on-read: clear the session so it isn't re-attributed to a later learn.
+        if (session) {
             clearSession(sessionKey);
         }
 

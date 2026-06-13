@@ -3,6 +3,7 @@ import { getAceClient } from '../services/aceClient';
 import {
     generateSessionId,
     saveSession,
+    getSession,
     getSessionKey,
     SESSION_TTL
 } from '../services/sessionStorage';
@@ -73,6 +74,11 @@ export class AceSearchTool implements vscode.LanguageModelTool<AceSearchInput> {
             const patternIds = patterns.map(p => p.id).filter((id): id is string => Boolean(id));
 
             if (patternIds.length > 0) {
+                // Accumulate a trajectory step from this search so the tool-path ace_learn
+                // (which receives no ChatContext.history) still has real F-080 context.
+                const prevTrajectory = getSession(sessionKey)?.trajectory ?? [];
+                const searchStep = `Searched: "${query}"${task_intent ? ` (intent: ${task_intent})` : ''}`;
+
                 saveSession(sessionKey, {
                     session_id: sessionId,
                     pattern_ids: patternIds,
@@ -80,7 +86,8 @@ export class AceSearchTool implements vscode.LanguageModelTool<AceSearchInput> {
                     timestamp: Date.now(),
                     expires_at: Date.now() + SESSION_TTL,
                     retrieval_id: result.retrieval_id,                                          // F-080 #16
-                    applied_log_ids: appliedLogIds.length > 0 ? appliedLogIds : undefined       // F-080 #17
+                    applied_log_ids: appliedLogIds.length > 0 ? appliedLogIds : undefined,      // F-080 #17
+                    trajectory: [...prevTrajectory, searchStep]
                 });
             }
 

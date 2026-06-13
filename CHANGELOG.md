@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Real F-080 trajectory from chat history**: the `/learn` chat command builds the execution-trace `trajectory` from `ChatContext.history` (actual conversation turns) instead of a placeholder, giving the learning loop the real context that led to the work.
 - **"ACE" tool set**: the four `ace_*` language model tools are grouped into an `ace` tool set (`contributes.languageModelToolSets`) for discoverability in the agent `#`-picker.
 - **`task_intent` in agent instructions**: the generated ACE instructions file now documents the ACE 1.5 `task_intent` routing hint for `ace_search`.
+- **Tool-path trajectory**: `ace_learn` (the in-process tool path, which receives no `ChatContext.history`) now builds `trace.trajectory` from the `ace_search` steps accumulated in the session, instead of sending an empty trajectory.
+
+### Fixed
+- **Attribution session collision (best-effort)**: `ace_learn` now consumes (clears) the attribution session after reading it, so a search is attributed at most once. This bounds cross-session mis-attribution under VS Code 1.124 background/parallel agent sessions. Note: full per-session isolation is not achievable while VS Code exposes no session identifier to Language Model Tools (documented in `sessionStorage.ts`).
 
 ### Changed
 - **`@ace-sdk/core` bumped to `^3.2.3`** — ACE 1.5 reward model and F-080 API surface.

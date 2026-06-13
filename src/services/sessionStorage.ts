@@ -3,9 +3,21 @@
  * Links ace_search results to ace_learn submissions
  *
  * Key insight: Session = "current task" scope
- * - ace_search generates new session with pattern IDs
- * - ace_learn consumes session, populates playbook_used, clears session
+ * - ace_search generates new session with pattern IDs (and accumulates a trajectory)
+ * - ace_learn consumes session, populates playbook_used + trajectory, clears session
  * - Uses same cache key pattern as aceClient.ts (folder?.uri?.toString() ?? 'default')
+ *
+ * ⚠️ Concurrency limitation (VS Code ≤ 1.124): Language Model Tools receive NO
+ * chat-session / request identifier — `LanguageModelToolInvocationOptions` exposes
+ * only an opaque, per-invocation `toolInvocationToken` (and `ChatRequest` has no
+ * `id`). The in-process tool path therefore cannot key a session per agent session
+ * and falls back to the process-global 'default' key. With VS Code 1.124 background
+ * /parallel agent sessions, two concurrent search→learn cycles in the SAME window
+ * can cross-attribute. Mitigations applied: (1) consume-on-read — ace_learn clears
+ * the session after reading it, so a search is attributed at most once; (2) the
+ * TTL bounds staleness. Full per-session isolation is not achievable until VS Code
+ * surfaces a session id to tools. (Separate VS Code windows are separate extension
+ * hosts / processes and do NOT share this map.)
  */
 import * as vscode from 'vscode';
 
@@ -20,6 +32,7 @@ export interface SessionData {
     expires_at: number;
     retrieval_id?: string;      // F-080 #16: UUID from SearchResponseWithMetadata.retrieval_id
     applied_log_ids?: number[]; // F-080 #17: retrieval_log_id integers from match_factors
+    trajectory?: string[];      // accumulated search-derived steps for the tool-path F-080 trajectory
 }
 
 // In-memory store (keyed by folder URI or 'default')

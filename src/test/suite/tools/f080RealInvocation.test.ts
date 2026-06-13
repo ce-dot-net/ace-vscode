@@ -236,3 +236,65 @@ suite('F-080 real invocation — AceSearchTool forwards + persists session field
         assert.ok(out.includes('zzzzzz99'), 'highest-reward neighbor id (truncated to 8) is shown');
     });
 });
+
+suite('F-080 tool path — trajectory from session + consume-on-read', () => {
+    let sandbox: sinon.SinonSandbox;
+    let searchStub: sinon.SinonStub;
+    let storeStub: sinon.SinonStub;
+
+    setup(() => {
+        sandbox = sinon.createSandbox();
+        clearSession(KEY);
+        searchStub = sandbox.stub().resolves({
+            retrieval_id: 'r',
+            similar_patterns: [{ id: 'p1', content: 'a', domain: 'd', match_factors: {} }]
+        });
+        storeStub = sandbox.stub().resolves({});
+        // Both tools resolve through the stubbed module singleton (AceLearnTool's
+        // default clientProvider is getAceClient, AceSearchTool calls it directly).
+        sandbox.stub(aceClientModule, 'getAceClient').returns(
+            { searchPatterns: searchStub, storeExecutionTraceStream: storeStub } as unknown as ReturnType<typeof aceClientModule.getAceClient>
+        );
+    });
+
+    teardown(() => {
+        sandbox.restore();
+        clearSession(KEY);
+    });
+
+    test('ace_learn trajectory is built from the accumulated ace_search step (#1)', async () => {
+        await new AceSearchTool().invoke(invocation({ query: 'jwt auth', task_intent: 'explore' }), makeCancellationToken());
+        await new AceLearnTool().invoke(invocation({ task: 'added jwt' }), makeCancellationToken());
+
+        const trace = storeStub.firstCall.args[0];
+        assert.deepStrictEqual(
+            trace.trajectory,
+            ['Searched: "jwt auth" (intent: explore)', 'Task: added jwt'],
+            'trajectory = accumulated search step(s) + final task'
+        );
+    });
+
+    test('multiple searches accumulate, then ace_learn consumes the session (consume-on-read)', async () => {
+        await new AceSearchTool().invoke(invocation({ query: 'first' }), makeCancellationToken());
+        await new AceSearchTool().invoke(invocation({ query: 'second' }), makeCancellationToken());
+
+        assert.deepStrictEqual(
+            getSession(KEY)?.trajectory,
+            ['Searched: "first"', 'Searched: "second"'],
+            'search steps accumulate across the task window'
+        );
+
+        await new AceLearnTool().invoke(invocation({ task: 't' }), makeCancellationToken());
+        assert.deepStrictEqual(storeStub.firstCall.args[0].trajectory, ['Searched: "first"', 'Searched: "second"', 'Task: t']);
+
+        // consume-on-read: the session is cleared so it cannot be re-attributed
+        assert.strictEqual(getSession(KEY), undefined, 'session consumed after learn');
+
+        await new AceLearnTool().invoke(invocation({ task: 't2' }), makeCancellationToken());
+        assert.deepStrictEqual(
+            storeStub.secondCall.args[0].trajectory,
+            ['Task: t2'],
+            'a later learn does not re-use the consumed search trajectory'
+        );
+    });
+});
