@@ -376,6 +376,14 @@ Call \`#ce-dot-net.ace-vscode/ace_search\` AGAIN when:
 
 Example domains: \`vscode-extension-architecture-and-development\`, \`git-operations\`, \`node-express-jwt-authentication\`
 
+## Task Intent Routing (ACE 1.5)
+
+Pass \`task_intent\` to \`ace_search\` to improve ACE 1.5 bandit routing of patterns:
+- Values: \`refactor\` · \`routine\` · \`explore\` · \`spec_strict\`
+- Chat: \`@ace /search <query> --task-intent refactor\`
+- Tool: set the \`task_intent\` input on \`#ce-dot-net.ace-vscode/ace_search\`
+- Omit it to use the server default.
+
 ## Available Tools
 
 - \`#ce-dot-net.ace-vscode/ace_search\` - Find relevant patterns (BEFORE work, supports domain filtering)

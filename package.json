@@ -2,7 +2,7 @@
   "name": "ace-vscode",
   "displayName": "ACE for GitHub Copilot",
   "description": "Pattern learning and retrieval for GitHub Copilot - captures what works, retrieves it when needed",
-  "version": "0.6.4",
+  "version": "0.7.0",
   "publisher": "ce-dot-net",
   "license": "MIT",
   "homepage": "https://github.com/ce-dot-net/ace-vscode#readme",
@@ -151,6 +151,11 @@
             "blocked_domains": {
               "type": "string",
               "description": "Comma-separated list of domains to exclude (blacklist)"
+            },
+            "task_intent": {
+              "type": "string",
+              "enum": ["refactor", "routine", "explore", "spec_strict"],
+              "description": "Task intent hint for ACE 1.5 bandit routing. Omit to use server default."
             }
           },
           "required": [
@@ -419,7 +424,7 @@
     "test": "vscode-test"
   },
   "dependencies": {
-    "@ace-sdk/core": "^2.18.1"
+    "@ace-sdk/core": "^3.2.3"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",

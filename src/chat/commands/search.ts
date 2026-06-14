@@ -4,10 +4,12 @@ import { getClientForChat, formatProjectContext } from '../utils/chatContext';
 import {
     generateSessionId,
     saveSession,
+    getSession,
     getSessionKey,
     SESSION_TTL
 } from '../../services/sessionStorage';
-import type { PlaybookBullet } from '@ace-sdk/core';
+import type { SearchResultPattern, SearchPatternsParams } from '@ace-sdk/core';
+import { decodeMatchFactors } from '@ace-sdk/core';
 
 /**
  * Handles the /search command - semantic search for patterns in the playbook
@@ -27,17 +29,20 @@ export async function handleSearch(
     const { client, folder } = clientInfo;
     const promptText = request.prompt.trim();
 
-    // Parse domain filters from prompt
+    // Parse domain filters and task_intent from prompt
     const allowedDomainsMatch = promptText.match(/--allowed-domains\s+([^\s]+)/);
     const blockedDomainsMatch = promptText.match(/--blocked-domains\s+([^\s]+)/);
+    const taskIntentMatch = promptText.match(/--task-intent\s+(refactor|routine|explore|spec_strict)/);
 
     const allowedDomains = allowedDomainsMatch ? allowedDomainsMatch[1].split(',').map(d => d.trim()) : undefined;
     const blockedDomains = blockedDomainsMatch ? blockedDomainsMatch[1].split(',').map(d => d.trim()) : undefined;
+    const taskIntent = taskIntentMatch ? taskIntentMatch[1] as 'refactor' | 'routine' | 'explore' | 'spec_strict' : undefined;
 
     // Remove flags from query
     const query = promptText
         .replace(/--allowed-domains\s+[^\s]+/, '')
         .replace(/--blocked-domains\s+[^\s]+/, '')
+        .replace(/--task-intent\s+[^\s]+/, '')
         .trim();
 
     if (!query) {
@@ -60,19 +65,18 @@ export async function handleSearch(
     formatMarkdown(stream, `🔍 Searching for: **${query}**${domainInfo}\n\n`);
 
     try {
-        // Build search options with optional domain filtering
-        const searchOptions: {
-            query: string;
-            threshold: number;
-            top_k: number;
-            include_metadata: boolean;
-            allowed_domains?: string[];
-            blocked_domains?: string[];
-        } = {
+        // Generate session ID before building searchOptions so it can be forwarded (#18)
+        const sessionKey = getSessionKey(folder);
+        const sessionId = generateSessionId();
+
+        // Build search options typed as SearchPatternsParams (#18)
+        const searchOptions: SearchPatternsParams = {
             query,
             threshold: 0.75,
             top_k: 10,
-            include_metadata: true
+            include_metadata: true,
+            session_id: sessionId,                          // F-080 #18
+            ...(taskIntent ? { task_intent: taskIntent } : {}) // F-080 #18: omit key when absent
         };
 
         if (allowedDomains) {
@@ -84,20 +88,32 @@ export async function handleSearch(
 
         const result = await client.searchPatterns(searchOptions);
 
-        const patterns: PlaybookBullet[] = result.similar_patterns || [];
+        const patterns: SearchResultPattern[] = result.similar_patterns || [];  // #17: typed as SearchResultPattern[]
+
+        // Collect applied_log_ids from match_factors (#17)
+        const appliedLogIds = patterns
+            .map(p => decodeMatchFactors(p.match_factors))
+            .filter((mf): mf is NonNullable<typeof mf> => mf !== null)
+            .map(mf => mf.retrieval_log_id)
+            .filter((id): id is number => id !== null);
 
         // Save session with pattern IDs for attribution
+        // Persist the session UNCONDITIONALLY after a successful search (not gated on pattern
+        // count) so the pinned session_id survives a 0-pattern / early-exit path and a later
+        // /learn can re-attach it byte-identically (correlation invariant, see sessionStorage.ts).
         const patternIds = patterns.map(p => p.id).filter((id): id is string => Boolean(id));
-        if (patternIds.length > 0) {
-            const sessionKey = getSessionKey(folder);
-            saveSession(sessionKey, {
-                session_id: generateSessionId(),
-                pattern_ids: patternIds,
-                query: query,
-                timestamp: Date.now(),
-                expires_at: Date.now() + SESSION_TTL
-            });
-        }
+        const prevTrajectory = getSession(sessionKey)?.trajectory ?? [];
+        const searchStep = `Searched: "${query}"${taskIntent ? ` (intent: ${taskIntent})` : ''}`;
+        saveSession(sessionKey, {
+            session_id: sessionId,
+            pattern_ids: patternIds,                                                    // may be empty
+            query: query,
+            timestamp: Date.now(),
+            expires_at: Date.now() + SESSION_TTL,
+            retrieval_id: result.retrieval_id,                                          // F-080 #16
+            applied_log_ids: appliedLogIds.length > 0 ? appliedLogIds : undefined,      // F-080 #17
+            trajectory: [...prevTrajectory, searchStep]
+        });
 
         if (patterns.length === 0) {
             formatMarkdown(stream, '*No matching patterns found.*\n\n');
