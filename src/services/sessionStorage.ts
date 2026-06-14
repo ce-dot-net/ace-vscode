@@ -7,6 +7,20 @@
  * - ace_learn consumes session, populates playbook_used + trajectory, clears session
  * - Uses same cache key pattern as aceClient.ts (folder?.uri?.toString() ?? 'default')
  *
+ * Server correlation invariants (required for the server-side eval/learning credit loop — this
+ * exact bug previously bit the Claude Code ACE client; documented here so we don't repeat it):
+ *   1. Per-task session_id (our `sess_*`), NOT the IDE/conversation id. We mint our own id at
+ *      search time, so we never share one id across a whole conversation.
+ *   2. Search-pin == learn-trace, byte-identical. The id passed to searchPatterns() is stored
+ *      and re-attached verbatim by ace_learn; ace_learn NEVER generates a session_id.
+ *   3. Persist the id EARLY + UNCONDITIONALLY. The session is saved after every successful
+ *      search regardless of pattern count, so a 0-pattern / early-exit search still lets a later
+ *      ace_learn anchor the (already server-stamped) retrieval. (Previously gated on patterns>0
+ *      — that dropped the id on 0-pattern paths and orphaned the retrieval.)
+ *   Non-solution (server ruling): tasks that abort before ace_learn fires are outcome-less and
+ *   must NOT be retroactively credited / swept. We don't — the lingering session simply expires
+ *   or is overwritten by the next search; abstain is correct.
+ *
  * ⚠️ Concurrency limitation (VS Code ≤ 1.124): Language Model Tools receive NO
  * chat-session / request identifier — `LanguageModelToolInvocationOptions` exposes
  * only an opaque, per-invocation `toolInvocationToken` (and `ChatRequest` has no

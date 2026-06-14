@@ -73,23 +73,22 @@ export class AceSearchTool implements vscode.LanguageModelTool<AceSearchInput> {
             // Save pattern IDs for attribution
             const patternIds = patterns.map(p => p.id).filter((id): id is string => Boolean(id));
 
-            if (patternIds.length > 0) {
-                // Accumulate a trajectory step from this search so the tool-path ace_learn
-                // (which receives no ChatContext.history) still has real F-080 context.
-                const prevTrajectory = getSession(sessionKey)?.trajectory ?? [];
-                const searchStep = `Searched: "${query}"${task_intent ? ` (intent: ${task_intent})` : ''}`;
-
-                saveSession(sessionKey, {
-                    session_id: sessionId,
-                    pattern_ids: patternIds,
-                    query: query,
-                    timestamp: Date.now(),
-                    expires_at: Date.now() + SESSION_TTL,
-                    retrieval_id: result.retrieval_id,                                          // F-080 #16
-                    applied_log_ids: appliedLogIds.length > 0 ? appliedLogIds : undefined,      // F-080 #17
-                    trajectory: [...prevTrajectory, searchStep]
-                });
-            }
+            // Persist the session UNCONDITIONALLY after a successful search — NOT gated on
+            // pattern count. The session_id pinned on searchPatterns() must survive a
+            // 0-pattern / early-exit path so a later ace_learn re-attaches it byte-identically
+            // and the server can credit the retrieval (correlation invariant, see sessionStorage.ts).
+            const prevTrajectory = getSession(sessionKey)?.trajectory ?? [];
+            const searchStep = `Searched: "${query}"${task_intent ? ` (intent: ${task_intent})` : ''}`;
+            saveSession(sessionKey, {
+                session_id: sessionId,
+                pattern_ids: patternIds,                                                    // may be empty
+                query: query,
+                timestamp: Date.now(),
+                expires_at: Date.now() + SESSION_TTL,
+                retrieval_id: result.retrieval_id,                                          // F-080 #16
+                applied_log_ids: appliedLogIds.length > 0 ? appliedLogIds : undefined,      // F-080 #17
+                trajectory: [...prevTrajectory, searchStep]
+            });
 
             // Format verbose output matching CLI plugin style
             const domainFilter = allowed_domains

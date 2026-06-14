@@ -98,23 +98,22 @@ export async function handleSearch(
             .filter((id): id is number => id !== null);
 
         // Save session with pattern IDs for attribution
+        // Persist the session UNCONDITIONALLY after a successful search (not gated on pattern
+        // count) so the pinned session_id survives a 0-pattern / early-exit path and a later
+        // /learn can re-attach it byte-identically (correlation invariant, see sessionStorage.ts).
         const patternIds = patterns.map(p => p.id).filter((id): id is string => Boolean(id));
-        if (patternIds.length > 0) {
-            // Accumulate a trajectory step (consistent with the tool path's session).
-            const prevTrajectory = getSession(sessionKey)?.trajectory ?? [];
-            const searchStep = `Searched: "${query}"${taskIntent ? ` (intent: ${taskIntent})` : ''}`;
-
-            saveSession(sessionKey, {
-                session_id: sessionId,
-                pattern_ids: patternIds,
-                query: query,
-                timestamp: Date.now(),
-                expires_at: Date.now() + SESSION_TTL,
-                retrieval_id: result.retrieval_id,                                          // F-080 #16
-                applied_log_ids: appliedLogIds.length > 0 ? appliedLogIds : undefined,      // F-080 #17
-                trajectory: [...prevTrajectory, searchStep]
-            });
-        }
+        const prevTrajectory = getSession(sessionKey)?.trajectory ?? [];
+        const searchStep = `Searched: "${query}"${taskIntent ? ` (intent: ${taskIntent})` : ''}`;
+        saveSession(sessionKey, {
+            session_id: sessionId,
+            pattern_ids: patternIds,                                                    // may be empty
+            query: query,
+            timestamp: Date.now(),
+            expires_at: Date.now() + SESSION_TTL,
+            retrieval_id: result.retrieval_id,                                          // F-080 #16
+            applied_log_ids: appliedLogIds.length > 0 ? appliedLogIds : undefined,      // F-080 #17
+            trajectory: [...prevTrajectory, searchStep]
+        });
 
         if (patterns.length === 0) {
             formatMarkdown(stream, '*No matching patterns found.*\n\n');

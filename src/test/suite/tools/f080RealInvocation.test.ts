@@ -274,6 +274,23 @@ suite('F-080 tool path — trajectory from session + consume-on-read', () => {
         );
     });
 
+    test('invariant #3 — a 0-pattern search still persists the pinned session_id so ace_learn can anchor it', async () => {
+        // Search returns 0 patterns, but the server still stamped a retrieval row with the
+        // pinned session_id. The session_id MUST survive this early-exit path.
+        searchStub.resolves({ retrieval_id: 'ret-empty', similar_patterns: [] });
+        await new AceSearchTool().invoke(invocation({ query: 'nothing matches here' }), makeCancellationToken());
+
+        const pinned = searchStub.firstCall.args[0].session_id;
+        const session = getSession(KEY);
+        assert.ok(session, 'session persisted even with 0 patterns (early-exit safety)');
+        assert.strictEqual(session!.session_id, pinned, 'persisted session_id == the one pinned to the server');
+
+        // ace_learn must re-attach the SAME id byte-identically (invariant #2) → anchored trace
+        await new AceLearnTool().invoke(invocation({ task: 'did the work anyway' }), makeCancellationToken());
+        const trace = storeStub.firstCall.args[0];
+        assert.strictEqual(trace.session_id, pinned, 'learn trace carries the same pinned session_id → server can credit');
+    });
+
     test('multiple searches accumulate, then ace_learn consumes the session (consume-on-read)', async () => {
         await new AceSearchTool().invoke(invocation({ query: 'first' }), makeCancellationToken());
         await new AceSearchTool().invoke(invocation({ query: 'second' }), makeCancellationToken());
